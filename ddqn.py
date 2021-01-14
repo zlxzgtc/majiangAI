@@ -1,172 +1,116 @@
-import argparse
-import os
 import random
-
-import numpy as np
-
 import gym
+import numpy as np
+from collections import deque
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import backend as K
+
 import tensorflow as tf
-# import tensorlayer as tl
+
+EPISODES = 5000
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--train', dest='train', default=False)
-parser.add_argument('--test', dest='test', default=True)
+class DQNAgent:
+    def __init__(self, state_size, action_size):
+        self.state_size = state_size
+        self.action_size = action_size
+        self.memory = deque(maxlen=2000)
+        self.gamma = 0.95  # discount rate
+        self.epsilon = 1.0  # exploration rate
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.99
+        self.learning_rate = 0.001
+        self.model = self._build_model()
+        self.target_model = self._build_model()
+        self.update_target_model()
 
-parser.add_argument('--gamma', type=float, default=0.95)
-parser.add_argument('--lr', type=float, default=0.005)
-parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--eps', type=float, default=0.1)
+    def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
+        error = y_true - y_pred
+        cond = K.abs(error) <= clip_delta
 
-parser.add_argument('--train_episodes', type=int, default=200)
-parser.add_argument('--test_episodes', type=int, default=10)
-args = parser.parse_args()
+        squared_loss = 0.5 * K.square(error)
+        quadratic_loss = 0.5 * K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
 
-ALG_NAME = 'DDQN'
-ENV_ID = 'CartPole-v1'
+        return K.mean(tf.where(cond, squared_loss, quadratic_loss))
 
-class ReplayBuffer:
-    def __init__(self, capacity=10000):
-        self.capacity = capacity
-        self.buffer = []
-        self.position = 0
+    def _build_model(self):
+        # Neural Net for Deep-Q learning Model
+        model = Sequential()
+        model.add(Dense(128, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(123, activation='relu'))
+        model.add(Dense(self.action_size, activation='softmax'))
+        model.compile(loss=self._huber_loss,
+                      optimizer=Adam(lr=self.learning_rate))
+        return model
 
-    def push(self, state, action, reward, next_state, done):
-        if len(self.buffer) < self.capacity:
-            self.buffer.append(None)
-        self.buffer[self.position] = (state, action, reward, next_state, done)
-        self.position = int((self.position + 1) % self.capacity)
+    def update_target_model(self):
+        # copy weights from model to target_model
+        self.target_model.set_weights(self.model.get_weights())
 
-    def sample(self, batch_size = args.batch_size):
-        batch = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = map(np.stack, zip(*batch))
-        """ 
-        the * serves as unpack: sum(a,b) <=> batch=(a,b), sum(*batch) ;
-        zip: a=[1,2], b=[2,3], zip(a,b) => [(1, 2), (2, 3)] ;
-        the map serves as mapping the function on each list element: map(square, [2,3]) => [4,9] ;
-        np.stack((1,2)) => array([1, 2])
-        """
-        return state, action, reward, next_state, done
+    def memorize(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
 
+    def act(self, state):
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)  # 随机选择一个动作
+        act_values = self.model.predict(state) # 否则选择估值最大的
+        return np.argmax(act_values[0])  # returns action
 
-class Agent:
-    def __init__(self, env):
-        self.env = env
-        self.state_dim = self.env.observation_space.shape[0]
-        self.action_dim = self.env.action_space.n
+    def replay(self, batch_size):
+        minibatch = random.sample(self.memory, batch_size) #随机取样
+        for state, action, reward, next_state, done in minibatch:
+            target = self.model.predict(state)
+            if done:
+                target[0][action] = reward
+            else:
+                # a = self.model.predict(next_state)[0]
+                t = self.target_model.predict(next_state)[0]
+                target[0][action] = reward + self.gamma * np.amax(t)
+                # target[0][action] = reward + self.gamma * t[np.argmax(a)]
+            self.model.fit(state, target, epochs=1, verbose=0)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
-        def create_model(input_state_shape):
-            model = tf.keras.Sequential()
-            input_layer = tl.layers.Input(input_state_shape)
-            layer_1 = tl.layers.Dense(n_units=32, act=tf.nn.relu)(input_layer)
-            layer_2 = tl.layers.Dense(n_units=16, act=tf.nn.relu)(layer_1)
-            output_layer = tl.layers.Dense(n_units=self.action_dim)(layer_2)
-            return tl.models.Model(inputs=input_layer, outputs=output_layer)
+    def load(self, name):
+        self.model.load_weights(name)
 
-        self.model = create_model([None, self.state_dim])
-        self.target_model = create_model([None, self.state_dim])
-        self.model.train()
-        self.target_model.eval()
-        self.model_optim = tf.optimizers.Adam(lr=args.lr)
-
-        self.epsilon = args.eps
-
-        self.buffer = ReplayBuffer()
-
-    def target_update(self):
-        """Copy q network to target q network"""
-        for weights, target_weights in zip(
-                self.model.trainable_weights, self.target_model.trainable_weights):
-            target_weights.assign(weights)
-
-    def choose_action(self, state):
-        if np.random.uniform() < self.epsilon:
-            return np.random.choice(self.action_dim)
-        else:
-            q_value = self.model(state[np.newaxis, :])[0]
-            return np.argmax(q_value)
-
-    def replay(self):
-        for _ in range(10):
-            states, actions, rewards, next_states, done = self.buffer.sample()
-            # targets [batch_size, action_dim]
-            # Target represents the current fitting level
-            target = self.target_model(states).numpy()
-            # next_q_values [batch_size, action_diim]
-            next_target = self.target_model(next_states).numpy()
-            # next_q_value [batch_size, 1]
-            next_q_value = next_target[
-                range(args.batch_size), np.argmax(self.model(next_states), axis=1)
-            ]
-            # next_q_value = tf.reduce_max(next_q_value, axis=1)
-            target[range(args.batch_size), actions] = rewards + (1 - done) * args.gamma * next_q_value
-
-            # use sgd to update the network weight
-            with tf.GradientTape() as tape:
-                q_pred = self.model(states)
-                loss = tf.losses.mean_squared_error(target, q_pred)
-            grads = tape.gradient(loss, self.model.trainable_weights)
-            self.model_optim.apply_gradients(zip(grads, self.model.trainable_weights))
+    def save(self, name):
+        self.model.save_weights(name)
 
 
-    def test_episode(self, test_episodes):
-        for episode in range(test_episodes):
-            state = self.env.reset().astype(np.float32)
-            total_reward, done = 0, False
-            while not done:
-                action = self.model(np.array([state], dtype=np.float32))[0]
-                action = np.argmax(action)
-                next_state, reward, done, _ = self.env.step(action)
-                next_state = next_state.astype(np.float32)
+if __name__ == "__main__":
+    env = gym.make('CartPole-v1')
+    state_size = env.observation_space.shape[0]  # 环境状态
+    action_size = env.action_space.n  # 动作 34种出牌
+    agent = DQNAgent(state_size, action_size)
+    # agent.load("./save/cartpole-ddqn.h5")
+    done = False
+    batch_size = 32
 
-                total_reward += reward
-                state = next_state
-                self.env.render()
-            print("Test {} | episode rewards is {}".format(episode, total_reward))
+    for e in range(EPISODES):
+        state = env.reset()  # 获取当前环境
+        state = np.reshape(state, [1, state_size])  # 拉平
+        for time in range(500):
+            # env.render()
+            action = agent.act(state)  # 根据当前状态 选择一个动作
+            next_state, reward, done, _ = env.step(action)  # step执行这个动作
+            # reward = reward if not done else -10
+            x, x_dot, theta, theta_dot = next_state  # 下一个状态，并计算reward
+            r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
+            r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
+            reward = r1 + r2
 
-    def train(self, train_episodes=200):
-        if args.train:
-            for episode in range(train_episodes):
-                total_reward, done = 0, False
-                state = self.env.reset().astype(np.float32)
-                while not done:
-                    action = self.choose_action(state)
-                    next_state, reward, done, _ = self.env.step(action)
-                    next_state = next_state.astype(np.float32)
-                    self.buffer.push(state, action, reward, next_state, done)
-                    total_reward += reward
-                    state = next_state
-                    # self.render()
-                if len(self.buffer.buffer) > args.batch_size:
-                    self.replay()
-                    self.target_update()
-                print('EP{} EpisodeReward={}'.format(episode, total_reward))
-
-            self.saveModel()
-        if args.test:
-            self.loadModel()
-            self.test_episode(test_episodes=args.test_episodes)
-
-    def saveModel(self):
-        path = os.path.join('model', '_'.join([ALG_NAME, ENV_ID]))
-        if not os.path.exists(path):
-            os.makedirs(path)
-        tl.files.save_weights_to_hdf5(os.path.join(path, 'model.hdf5'), self.model)
-        tl.files.save_weights_to_hdf5(os.path.join(path, 'target_model.hdf5'), self.target_model)
-        print('Saved weights.')
-
-    def loadModel(self):
-        path = os.path.join('model', '_'.join([ALG_NAME, ENV_ID]))
-        if os.path.exists(path):
-            print('Load DQN Network parametets ...')
-            tl.files.load_hdf5_to_weights_in_order(os.path.join(path, 'model.hdf5'), self.model)
-            tl.files.load_hdf5_to_weights_in_order(os.path.join(path, 'target_model.hdf5'), self.target_model)
-            print('Load weights!')
-        else: print("No model file find, please train model first...")
-
-
-if __name__ == '__main__':
-    env = gym.make(ENV_ID)
-    agent = Agent(env)
-    agent.train(train_episodes=args.train_episodes)
-    env.close()
+            next_state = np.reshape(next_state, [1, state_size])
+            agent.memorize(state, action, reward, next_state, done)  # 放入记忆池
+            state = next_state
+            if done:
+                agent.update_target_model()
+                print("episode: {}/{}, score: {}, e: {:.2}"
+                      .format(e, EPISODES, time, agent.epsilon))
+                break
+            if len(agent.memory) > batch_size:
+                agent.replay(batch_size)
+        # if e % 10 == 0:
+        #     agent.save("./save/cartpole-ddqn.h5")

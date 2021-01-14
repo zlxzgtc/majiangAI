@@ -126,7 +126,7 @@ class Player():
 
     def think_eat(self, tile):
         add_tiles = np.asarray([[0, 1, 2], [-1, 0, 1], [-1, -2, 0]])
-        print(utils.get_Tiles_names(self.tiles)+"能不能吃？"+utils.get_tile_name(tile))
+        # print(utils.get_Tiles_names(self.tiles)+"能不能吃？"+utils.get_tile_name(tile))
         eat_choice = self.is_eat(tile)
         if self.type == 'human':
             if len(eat_choice) > 0:
