@@ -2,6 +2,7 @@ import utils
 from copy import deepcopy
 import numpy as np
 import hu_judge
+import ddqn
 
 
 class Player():
@@ -16,13 +17,15 @@ class Player():
         self.gang_tiles = []
         self.hu_dis = 11  # 初始化向听数为最大向听数
         self.score = 0
+        if type == 'ai':
+            self.out_agent = ddqn.DDQNAgent(34 * 6 + 4, 34)  # 打牌模型
+
     def game_init(self):
         self.tiles = []  # 我的手牌
         self.pong_tiles = []
         self.eat_tiles = []
         self.gang_tiles = []
         self.hu_dis = 11  # 初始化向听数为最大向听数
-
 
     # 游戏开始后，发牌
     def set_tile(self, tiles):
@@ -52,10 +55,14 @@ class Player():
                 out_t = t
             else:
                 out_t = self.computer_choose()
+        elif self.type == 'ai':
+            # 获得上一轮状态 上一轮出的牌
+
+            pass
         else:
             pass
         self.tiles.remove(out_t)
-        print(str(self.id)+"打出" + utils.get_tile_name(out_t) + ",打出后：" + utils.get_Tiles_names(self.tiles))
+        print(str(self.id) + "打出" + utils.get_tile_name(out_t) + ",打出后：" + utils.get_Tiles_names(self.tiles))
         return out_t
 
     # 判断能不能碰

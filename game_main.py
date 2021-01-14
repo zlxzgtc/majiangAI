@@ -2,8 +2,8 @@ from random import shuffle
 from copy import deepcopy
 import numpy as np
 import utils
-import Player
-import Gametable
+import player
+import game_table
 import hu_judge
 
 
@@ -13,7 +13,7 @@ class Game():
         self.finished = False
         self.players = []
         for i in range(4):
-            self.players.append(Player.Player(i, players[i]))
+            self.players.append(player.Player(i, players[i]))
         self.banker = banker  # 庄家
         self.round = round  # 游戏轮数
         self.hu_score = 10  # 胡牌得分，庄家三倍
@@ -24,7 +24,7 @@ class Game():
     def start(self):
         for i in range(self.round):
             print("--------------------第" + str(i + 1) + "局--------------------")
-            self.game_table = Gametable.Gametable(False)  # 创建牌堆
+            self.game_table = game_table.Gametable(False)  # 创建牌堆
             self.now_turn = (self.banker + i) % 4
             self.banker = (self.banker + i) % 4
             self.no_hu = False
@@ -52,7 +52,6 @@ class Game():
                 if t != -1:
                     last_tile = t
                     self.next_player()
-                    # print("有人吃-----------------------------------------------------------------------")
                     continue
             # 摸牌
             if self.mo(self.now_turn) == -1:
@@ -60,6 +59,8 @@ class Game():
                 print("流局")
                 break
             self.players[self.now_turn].hu_dis = hu_judge.hu_distance(self.players[self.now_turn].tiles)
+            # if self.players[self.now_turn].type == 'ai':# ai在每次摸牌时要获取状态
+            #     print(self.env(self.now_turn))
             if self.players[self.now_turn].hu_dis == 0:  # 判断是否胡
                 print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
                 self.hu_id = self.now_turn
@@ -89,8 +90,21 @@ class Game():
         self.count_score()
         self.print_score()
 
-    def get_evn(self, id):
-        print(utils.get_cnt(self.players[id].tiles))
+    def env(self, id):
+        my_tiles = utils.get_cnt(self.players[id].tiles)
+        out_tiles = self.game_table.out_pile
+        my_eat_pong = np.add(utils.get_cnt(self.players[id].eat_tiles), utils.get_cnt(self.players[id].pong_tiles))
+        others_eat_pong = [0] * 34
+        other_info = []  # 所有玩家手牌数量 4 剩余牌数量 1 向听数 1
+        for i in range(4):
+            other_info.append(len(self.players[i].tiles))
+            if i != id:
+                others_eat_pong = np.add(utils.get_cnt(self.players[i].eat_tiles),
+                                         utils.get_cnt(self.players[i].pong_tiles))
+
+        other_info.append(len(self.game_table.Tiles))
+        other_info.append(self.players[id].hu_dis)
+        return np.hstack((my_tiles, out_tiles, my_eat_pong, others_eat_pong, other_info))
 
     def count_score(self):
         if self.no_hu:  # 流局不计算得分

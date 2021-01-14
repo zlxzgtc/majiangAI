@@ -1,13 +1,13 @@
-import Gametable
+import game_table
 
 
 # 麻将牌的名称
 def get_tile_name(t):
     if t >= 0:
         if t <= 26:
-            return str(t % 9 + 1) + Gametable.Gametable.type[t // 9]
+            return str(t % 9 + 1) + game_table.Gametable.type[t // 9]
         elif t <= 33:
-            return Gametable.Gametable.s_type[t - 27]
+            return game_table.Gametable.s_type[t - 27]
     return ''
 
 

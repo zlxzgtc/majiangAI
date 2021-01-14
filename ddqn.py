@@ -9,10 +9,12 @@ from tensorflow.keras import backend as K
 
 import tensorflow as tf
 
+
+
 EPISODES = 5000
 
 
-class DQNAgent:
+class DDQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
@@ -25,6 +27,7 @@ class DQNAgent:
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_target_model()
+
 
     def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
         error = y_true - y_pred
@@ -53,9 +56,10 @@ class DQNAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def act(self, state):
+        # 首先获取所有可能的动作
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)  # 随机选择一个动作
-        act_values = self.model.predict(state) # 否则选择估值最大的
+        act_values = self.model.predict(state) # 否则选择估值最大的 +(有牌可出的选项+1)
         return np.argmax(act_values[0])  # returns action
 
     def replay(self, batch_size):
@@ -85,7 +89,7 @@ if __name__ == "__main__":
     state_size = env.observation_space.shape[0]  # 环境状态
     action_size = env.action_space.n  # 动作 34种出牌
     agent = DQNAgent(state_size, action_size)
-    # agent.load("./save/cartpole-ddqn.h5")
+    agent.load("./majiang_ddqn.h5")
     done = False
     batch_size = 32
 
@@ -112,5 +116,5 @@ if __name__ == "__main__":
                 break
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
-        # if e % 10 == 0:
-        #     agent.save("./save/cartpole-ddqn.h5")
+        if e % 10 == 0:
+            agent.save("./majiang_ddqn.h5")
