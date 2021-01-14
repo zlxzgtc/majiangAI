@@ -1,0 +1,41 @@
+<view class="container">
+  <image src='../../images/background.jpeg'></image>
+  <view class="player-one">
+    <view class="cpk-one">
+
+    </view>
+    <view class="hand-one">
+      
+    </view>
+  </view>
+  <view class="right">
+    <view class="player-two">
+      <view class="hand-two">
+
+      </view>
+      <view class="cpk-two">
+
+      </view>
+    </view>
+    <view class="middle">
+      <view class="desk"></view>
+      <view class="last"></view>
+      <view class="player-three">
+        <view class="hand-three">
+
+        </view>
+        <view class="cpk-three">
+
+        </view>
+      </view>
+    </view>
+    <view class="player-four">
+      <view class="cpk-four">
+
+      </view>
+      <view class="hand-four">
+
+      </view>
+    </view>
+  </view>
+</view>
