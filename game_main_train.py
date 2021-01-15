@@ -33,70 +33,52 @@ class Game():
             for k in range(0, 16):
                 for j in range(4):
                     self.players[j].add_tiles(self.game_table.give_pile())
-            for k in range(4):
-                print(k, ' 的牌：', utils.get_Tiles_names(self.players[k].tiles))
+            # for k in range(4):
+            #     print(k, ' 的牌：', utils.get_Tiles_names(self.players[k].tiles))
             self.play()
         print("--------------------游戏结束--------------------")
         self.print_score()
 
     def play(self, banker=0):
         k = 0
-        last_tile = 0
         self.finished = False
-        now_turn = banker  # 当前出牌的人
         while not self.finished:  # 游戏未结束，四名玩家轮流出牌
             k += 1
             # print("当前----第", k, "轮")
             if k != 1:  # 除了第一个人打出的牌，其余都要判断是否能吃
-                if self.players[self.now_turn].type == 'ai':
-                    t = self.players[self.now_turn].think_eat(last_tile, self.env(), self.finished)
-                else:
-                    t = self.players[self.now_turn].think_eat(last_tile)
-                if t != -1:
-                    last_tile = t
+                c = self.player_think_eat(last_tile)
+                if c != 3:
+                    last_tile = self.player_think_out()
                     self.next_player()
                     continue
-            # 摸牌
-            if self.mo(self.now_turn) == -1:
+            if self.mo(self.now_turn) == -1:  # 摸牌
                 self.no_hu = True
                 print("流局")
                 break
-            self.players[self.now_turn].hu_dis = hu_judge.hu_distance(self.players[self.now_turn].tiles)
-            # if self.players[self.now_turn].type == 'ai':# ai在每次摸牌时要获取状态
-            #     print(self.env(self.now_turn))
-            if self.players[self.now_turn].hu_dis == 0:  # 判断是否胡
-                print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
-                self.hu_id = self.now_turn
-                self.finished = True
+            if self.player_think_hu():
                 break
-            if self.players[self.now_turn].type == 'ai':
-                t = self.players[self.now_turn].out_tiles(self.env(self.now_turn), self.finished)
-            else:
-                t = self.players[self.now_turn].out_tiles()
-            last_tile = t
-            self.game_table.put_pile(t)
+            last_tile = self.player_think_out()
+            self.game_table.put_pile(last_tile)
             self.next_player()
-            for j in range(3):
-                # 首先判断有没有人胡这张牌
-                if hu_judge.hu_distance(self.players[(self.now_turn + j) % 4].tiles, last_tile) == 0:
-                    print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
-                        self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
-                    self.finished = True
-                    self.hu_id = (self.now_turn + j) % 4
-                    break
-                # 然后判断是否有人碰 ，有则将牌堆中的这张牌取出
-                t = self.players[(self.now_turn + j) % 4].think_pong(last_tile)
-                if t != -1:
-                    last_tile = t
-                    self.next_player(self.now_turn + j + 1)
-                    break
-
+            if self.others_think_hu(last_tile):
+                break
+            pong_id = self.others_think_pong(last_tile)
+            if pong_id != -1:
+                self.next_player(pong_id % 4)
+                last_tile = self.player_think_out()
+                self.next_player()
             # print("当前打出的牌:", utils.get_Cnt_names(self.gametable.out_pile))
         # 游戏结束计算得分
         self.count_score()
         self.print_score()
         ai_player = self.players[0]
-        ai_player.out_agent.train(ai_player.old_env, ai_player.last_act, self.env(0), self.finished)
+        ai_player.train(ai_player.old_out_env, ai_player.last_act, self.env(0), True, 0)
+        if ai_player.last_act_eat != -1:
+            ai_player.train(ai_player.old_eat_env, ai_player.last_act_eat, self.env(0), True, 1)
+            ai_player.last_act_eat = -1
+        if ai_player.last_act_pong != -1:
+            ai_player.train(ai_player.old_pong_env, ai_player.last_act_pong, self.env(0), True, 2)
+            ai_player.last_act_pong = -1
 
     def env(self, id):
         my_tiles = utils.get_cnt(self.players[id].tiles)
@@ -139,8 +121,60 @@ class Game():
             self.finished = True
         else:
             self.players[player_id].add_tiles(t)
+        if self.players[player_id].type == 'ai':
+            self.players[player_id].last_act = 0
         return t
 
+    def player_think_eat(self, last_tile):
+        if self.players[self.now_turn].type == 'ai':
+            t = self.players[self.now_turn].think_eat(last_tile, self.env(self.now_turn))
+            if t != 3:
+                self.players[self.now_turn].last_act = 1
+        else:
+            t = self.players[self.now_turn].think_eat(last_tile)
+        return t
 
-game = Game(round=4)
+    def player_think_out(self):
+        if self.players[self.now_turn].type == 'ai':
+            t = self.players[self.now_turn].out_tiles(env=self.env(self.now_turn))
+        else:
+            t = self.players[self.now_turn].out_tiles()
+        return t
+
+    def player_think_hu(self):  # 玩家是否自摸胡
+        self.players[self.now_turn].hu_dis = hu_judge.hu_distance(self.players[self.now_turn].tiles)
+        if self.players[self.now_turn].hu_dis == 0:  # 判断是否胡
+            print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
+            self.hu_id = self.now_turn
+            self.finished = True
+        return self.finished
+
+    def others_think_hu(self, last_tile):
+        for j in range(3):
+            # 首先判断有没有人胡这张牌
+            if hu_judge.hu_distance(self.players[(self.now_turn + j) % 4].tiles, last_tile) == 0:
+                print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
+                    self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
+                self.finished = True
+                self.hu_id = (self.now_turn + j) % 4
+                return True
+        return False
+
+    # 然后判断是否有人碰 ，返回碰的人的id,无则返回-1
+    def others_think_pong(self, last_tile):
+        pong_id = -1
+        for j in range(3):
+            player = self.players[(self.now_turn + j) % 4]
+            if player.type == 'ai':
+                c = player.think_pong(last_tile, env=self.env(self.now_turn))
+                if c == 1:
+                    self.players[self.now_turn].last_act = 2
+            else:
+                c = player.think_pong(last_tile)
+            if c != 0:
+                pong_id = (self.now_turn + j) % 4
+        return pong_id
+
+
+game = Game(round=1000)
 game.start()

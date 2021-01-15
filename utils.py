@@ -36,3 +36,10 @@ def get_cnt(tiles):
     for i in range(34):
         cnt[i] = tiles.count(i)
     return cnt
+
+
+def get_eat_cnt(choice):
+    cnt = [0] * 4
+    for c in choice:
+        cnt[c] += 1
+    return cnt
