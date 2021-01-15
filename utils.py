@@ -43,3 +43,9 @@ def get_eat_cnt(choice):
     for c in choice:
         cnt[c] += 1
     return cnt
+
+def get_pong_cnt(choice):
+    cnt = [0] * 2
+    for c in choice:
+        cnt[c] += 1
+    return cnt

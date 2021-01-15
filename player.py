@@ -77,9 +77,9 @@ class Player():
             else:
                 out_t = self.computer_choose()
         elif self.type == 'ai':
-            # 获得上一轮状态 上一轮出的牌
             cnt = np.array(utils.get_cnt(self.tiles))
             cnt[cnt > 1] = 1
+            print("当前手牌:"+utils.get_Tiles_names(self.tiles))
             self.new_out_env = env
             if self.last_act_out != -1:
                 self.train(self.old_out_env, self.last_act_out, env, False, 0)  # 还在进行决策，所以done肯定为false
@@ -167,7 +167,7 @@ class Player():
             if self.is_pong(tile):  # 能碰
                 self.old_pong_env = env
                 pong_choice.append(1)
-                c = self.pong_agent.act(env, utils.get_eat_cnt(pong_choice))
+                c = self.pong_agent.act(env, utils.get_pong_cnt(pong_choice))
                 if c == 1:  # 选择碰
                     self.tiles.remove(tile)
                     self.tiles.remove(tile)

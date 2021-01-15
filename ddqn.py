@@ -7,6 +7,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import backend as K
 import os
 import tensorflow as tf
+import utils
+import resnet18
 
 EPISODES = 5000
 
@@ -16,7 +18,7 @@ class DDQNAgent:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.gamma = 0.95  # discount rate
+        self.gamma = 0.5  # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.99
@@ -25,7 +27,7 @@ class DDQNAgent:
         self.target_model = self._build_model()
         self.update_target_model()
         self.count = 0  # 统计训练次数
-        self.batch_size = 500
+        self.batch_size = 32
         self.name = name
         if os.path.isfile("./{}.h5".format(name)):
             self.load("./{}.h5".format(name))
@@ -61,10 +63,12 @@ class DDQNAgent:
         state = state.reshape((1, self.state_size))
         cnt = np.array(cnt)
         choice = np.argwhere(cnt == 1)
+        print("可选出的牌："+utils.get_Cnt_names(cnt))
         if np.random.rand() <= self.epsilon:
             return choice[random.randrange(len(choice))][0]  # 随机选择一个动作
         act_values = self.model.predict(state) + cnt  # 否则选择估值最大的 +(有牌可出的选项+1)
-        return np.argmax(act_values[0])  # returns action
+        print("建议出牌"+utils.get_tile_name(np.argmax(act_values)))
+        return np.argmax(act_values)  # returns action
 
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)  # 随机取样
@@ -98,7 +102,7 @@ class DDQNAgent:
                   .format(self.count,self.name, reward, self.epsilon))
         if len(self.memory) > self.batch_size:
             self.replay(self.batch_size)
-        if self.count % self.batch_size == 0:
+        # if self.count % self.batch_size == 0:
             self.save("./{}.h5".format(self.name))
-        # print("----------------------------------------------------------------------------------------train"+self.name+str(self.count))
+
 
