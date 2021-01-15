@@ -8,7 +8,7 @@ from tensorflow.keras import backend as K
 import os
 import tensorflow as tf
 import utils
-import resnet18
+import resnet
 
 EPISODES = 5000
 
@@ -43,12 +43,15 @@ class DDQNAgent:
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        model = Sequential()
-        model.add(Dense(128, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(123, activation='relu'))
-        model.add(Dense(self.action_size, activation='softmax'))
-        model.compile(loss=self._huber_loss,
-                      optimizer=Adam(lr=self.learning_rate))
+        # model = Sequential()
+        # model.add(Dense(128, input_dim=self.state_size, activation='relu'))
+        # model.add(Dense(123, activation='relu'))
+        # model.add(Dense(self.action_size, activation='softmax'))
+        # model.compile(loss=self._huber_loss,
+        #               optimizer=Adam(lr=self.learning_rate))
+        model = resnet.resnet18()
+        model.build(input_shape=(None, 32, 32, 3), num_class=self.action_size)
+
         return model
 
     def update_target_model(self):
@@ -63,11 +66,11 @@ class DDQNAgent:
         state = state.reshape((1, self.state_size))
         cnt = np.array(cnt)
         choice = np.argwhere(cnt == 1)
-        print("可选出的牌："+utils.get_Cnt_names(cnt))
+        print("可选出的牌：" + utils.get_Cnt_names(cnt))
         if np.random.rand() <= self.epsilon:
             return choice[random.randrange(len(choice))][0]  # 随机选择一个动作
         act_values = self.model.predict(state) + cnt  # 否则选择估值最大的 +(有牌可出的选项+1)
-        print("建议出牌"+utils.get_tile_name(np.argmax(act_values)))
+        print("建议出牌" + utils.get_tile_name(np.argmax(act_values)))
         return np.argmax(act_values)  # returns action
 
     def replay(self, batch_size):
@@ -93,16 +96,24 @@ class DDQNAgent:
 
     def train(self, state0, act0, state1, done, reward):
         self.count += 1
-        state0 = np.reshape(state0, [1, self.state_size])
-        state1 = np.reshape(state1, [1, self.state_size])
+        state0 = self.reshape_input(state0)
+        state1 = self.reshape_input(state1)
+        # state0 = np.reshape(state0, [1, self.state_size])
+        # state1 = np.reshape(state1, [1, self.state_size])
         self.memorize(state0, act0, reward, state1, done)
         if done:
             self.update_target_model()
             print("train_{}: {}, score: {}, e: {:.2}"
-                  .format(self.count,self.name, reward, self.epsilon))
+                  .format(self.count, self.name, reward, self.epsilon))
         if len(self.memory) > self.batch_size:
             self.replay(self.batch_size)
-        # if self.count % self.batch_size == 0:
+            # if self.count % self.batch_size == 0:
             self.save("./{}.h5".format(self.name))
 
-
+    # 对输入进行格式化
+    def reshape_input(self, x):
+        x = x + [0] * (32 * 32 * 3 - len(x))
+        x = np.asarray(x, dtype='float32')
+        x = x.reshape((32, 32, 3))
+        x = np.expand_dims(x, axis=0)
+        return x

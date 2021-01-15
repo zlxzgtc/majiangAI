@@ -77,7 +77,7 @@ class ResNet(keras.Model):
 
 
 def resnet18():
-    return ResNet([2, 2, 2, 2])
+    return ResNet([2, 2, 2, 2],num_classes=6)
 
 
 model = resnet18()
