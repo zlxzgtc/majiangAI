@@ -1,21 +1,18 @@
 import random
-import gym
 import numpy as np
 from collections import deque
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import backend as K
-
+import os
 import tensorflow as tf
-
-
 
 EPISODES = 5000
 
 
 class DDQNAgent:
-    def __init__(self, state_size, action_size):
+    def __init__(self, state_size, action_size, name):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
@@ -27,7 +24,11 @@ class DDQNAgent:
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_target_model()
-
+        self.count = 0  # 统计训练次数
+        self.batch_size = 500
+        self.name = name
+        if os.path.isfile("./{}.h5".format(name)):
+            self.load("./{}.h5".format(name))
 
     def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
         error = y_true - y_pred
@@ -55,15 +56,16 @@ class DDQNAgent:
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state):
+    def act(self, state, cnt):
         # 首先获取所有可能的动作
+        choice = np.argwhere(cnt == 1)
         if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)  # 随机选择一个动作
-        act_values = self.model.predict(state) # 否则选择估值最大的 +(有牌可出的选项+1)
+            return choice[random.randrange(len(choice))][0]  # 随机选择一个动作
+        act_values = self.model.predict(state) + cnt  # 否则选择估值最大的 +(有牌可出的选项+1)
         return np.argmax(act_values[0])  # returns action
 
     def replay(self, batch_size):
-        minibatch = random.sample(self.memory, batch_size) #随机取样
+        minibatch = random.sample(self.memory, batch_size)  # 随机取样
         for state, action, reward, next_state, done in minibatch:
             target = self.model.predict(state)
             if done:
@@ -83,38 +85,59 @@ class DDQNAgent:
     def save(self, name):
         self.model.save_weights(name)
 
+    def train(self, state0, act0, state1, done):
+        self.count += 1
+        state0 = np.reshape(state0, [1, self.state_size])
+        state1 = np.reshape(state1, [1, self.state_size])
+        if not done:
+            reward = state1[0][-1] - state0[0][-1]
+        else:
+            if state1[-1] == 0:  # 我胡了
+                reward = 30
+            else:
+                reward = -10  # 别人胡了
+        self.memorize(state0, act0, reward, state1, done)
+        if done:
+            self.update_target_model()
+            print("train: {}, score: {}, e: {:.2}"
+                  .format(self.count, reward, self.epsilon))
+        if len(self.memory) > self.batch_size:
+            self.replay(self.batch_size)
+        if self.count % 50 == 0:
+            self.save("./{}.h5".format(self.name))
 
-if __name__ == "__main__":
-    env = gym.make('CartPole-v1')
-    state_size = env.observation_space.shape[0]  # 环境状态
-    action_size = env.action_space.n  # 动作 34种出牌
-    agent = DQNAgent(state_size, action_size)
-    agent.load("./majiang_ddqn.h5")
-    done = False
-    batch_size = 32
 
-    for e in range(EPISODES):
-        state = env.reset()  # 获取当前环境
-        state = np.reshape(state, [1, state_size])  # 拉平
-        for time in range(500):
-            # env.render()
-            action = agent.act(state)  # 根据当前状态 选择一个动作
-            next_state, reward, done, _ = env.step(action)  # step执行这个动作
-            # reward = reward if not done else -10
-            x, x_dot, theta, theta_dot = next_state  # 下一个状态，并计算reward
-            r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
-            r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
-            reward = r1 + r2
-
-            next_state = np.reshape(next_state, [1, state_size])
-            agent.memorize(state, action, reward, next_state, done)  # 放入记忆池
-            state = next_state
-            if done:
-                agent.update_target_model()
-                print("episode: {}/{}, score: {}, e: {:.2}"
-                      .format(e, EPISODES, time, agent.epsilon))
-                break
-            if len(agent.memory) > batch_size:
-                agent.replay(batch_size)
-        if e % 10 == 0:
-            agent.save("./majiang_ddqn.h5")
+# if __name__ == "__main__":
+#     env = gym.make('CartPole-v1')
+#     state_size = env.observation_space.shape[0]  # 环境状态
+#     action_size = env.action_space.n  # 动作 34种出牌
+#     agent = DDQNAgent(state_size, action_size)
+#     agent.load("./majiang_ddqn.h5")
+#     done = False
+#     batch_size = 32
+#
+#     for e in range(EPISODES):
+#         state = env.reset()  # 获取当前环境
+#         state = np.reshape(state, [1, state_size])  # 拉平
+#         for time in range(500):
+#             # env.render()
+#             action = agent.act(state)  # 根据当前状态 选择一个动作
+#             next_state, reward, done, _ = env.step(action)  # step执行这个动作
+#             # reward = reward if not done else -10
+#             x, x_dot, theta, theta_dot = next_state  # 下一个状态，并计算reward
+#             r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
+#             r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
+#             reward = r1 + r2
+#
+#             next_state = np.reshape(next_state, [1, state_size])
+#             agent.memorize(state, action, reward, next_state, done)  # 放入记忆池
+#             state = next_state
+#             if done:
+#                 agent.update_target_model()
+#                 print("episode: {}/{}, score: {}, e: {:.2}"
+#                       .format(e, EPISODES, time, agent.epsilon))
+#                 break
+#             if len(agent.memory) > batch_size:
+#                 agent.replay(batch_size)
+#         if e % 10 == 0:
+#             agent.save("./majiang_ddqn.h5")

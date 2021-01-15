@@ -9,7 +9,7 @@ import hu_judge
 
 class Game():
 
-    def __init__(self, players=['computer', 'computer', 'computer', 'computer'], banker=0, round=1):
+    def __init__(self, players=['ai', 'computer', 'computer', 'computer'], banker=0, round=1):
         self.finished = False
         self.players = []
         for i in range(4):
@@ -48,7 +48,10 @@ class Game():
             k += 1
             # print("当前----第", k, "轮")
             if k != 1:  # 除了第一个人打出的牌，其余都要判断是否能吃
-                t = self.players[now_turn].think_eat(last_tile)
+                if self.players[self.now_turn].type == 'ai':
+                    t = self.players[self.now_turn].think_eat(last_tile, self.env(), self.finished)
+                else:
+                    t = self.players[self.now_turn].think_eat(last_tile)
                 if t != -1:
                     last_tile = t
                     self.next_player()
@@ -66,7 +69,10 @@ class Game():
                 self.hu_id = self.now_turn
                 self.finished = True
                 break
-            t = self.players[self.now_turn].out_tiles()
+            if self.players[self.now_turn].type == 'ai':
+                t = self.players[self.now_turn].out_tiles(self.env(self.now_turn), self.finished)
+            else:
+                t = self.players[self.now_turn].out_tiles()
             last_tile = t
             self.game_table.put_pile(t)
             self.next_player()
@@ -89,18 +95,20 @@ class Game():
         # 游戏结束计算得分
         self.count_score()
         self.print_score()
+        ai_player = self.players[0]
+        ai_player.out_agent.train(ai_player.old_env, ai_player.last_act, self.env(0), self.finished)
 
     def env(self, id):
         my_tiles = utils.get_cnt(self.players[id].tiles)
         out_tiles = self.game_table.out_pile
         my_eat_pong = np.add(utils.get_cnt(self.players[id].eat_tiles), utils.get_cnt(self.players[id].pong_tiles))
-        others_eat_pong = [0] * 34
+        others_eat_pong = []
         other_info = []  # 所有玩家手牌数量 4 剩余牌数量 1 向听数 1
         for i in range(4):
             other_info.append(len(self.players[i].tiles))
             if i != id:
-                others_eat_pong = np.add(utils.get_cnt(self.players[i].eat_tiles),
-                                         utils.get_cnt(self.players[i].pong_tiles))
+                others_eat_pong = np.hstack((others_eat_pong, np.add(utils.get_cnt(self.players[i].eat_tiles),
+                                                                     utils.get_cnt(self.players[i].pong_tiles))))
 
         other_info.append(len(self.game_table.Tiles))
         other_info.append(self.players[id].hu_dis)

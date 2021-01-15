@@ -18,7 +18,14 @@ class Player():
         self.hu_dis = 11  # 初始化向听数为最大向听数
         self.score = 0
         if type == 'ai':
-            self.out_agent = ddqn.DDQNAgent(34 * 6 + 4, 34)  # 打牌模型
+            self.out_agent = ddqn.DDQNAgent(34 * 6 + 6, 34, 'out')  # 打牌模型 0-33
+            self.eat_agent = ddqn.DDQNAgent(34 * 6 + 6, 3, 'eat')  # 吃牌模型 0,1,2
+            self.pong_agent = ddqn.DDQNAgent(34 * 6 + 6, 2, 'pong')  # 碰牌模型 0,1
+            self.old_env = []
+            self.new_env = []
+            self.last_act_out = -1
+            self.last_act_eat = -1
+            self.last_act_pong = -1
 
     def game_init(self):
         self.tiles = []  # 我的手牌
@@ -41,7 +48,7 @@ class Player():
         self.tiles.sort()
 
     # 玩家选择一张牌打出
-    def out_tiles(self, t=-1):
+    def out_tiles(self, t=-1, finish=False, is_eat=True):
         if self.type == 'human':
             # 输出所有手牌
             for item in self.tiles:
@@ -57,8 +64,24 @@ class Player():
                 out_t = self.computer_choose()
         elif self.type == 'ai':
             # 获得上一轮状态 上一轮出的牌
-
-            pass
+            if is_eat:  # 吃碰后暂时还是简易自动出牌
+                if t != -1:
+                    out_t = t
+                else:
+                    out_t = self.computer_choose()
+            else:
+                cnt = np.array(utils.get_cnt(self.tiles))
+                cnt[cnt > 1] = 1
+                if self.last_act_out == -1:  # 第一次初始化状态
+                    self.old_env = t
+                    self.last_act = self.out_agent.act(t, cnt)
+                    out_t = self.last_act
+                else:
+                    self.new_env = t
+                    out_t = self.out_agent.act(t, cnt)
+                    self.out_agent.train(self.old_env, self.last_act, self.new_env, finish)
+                    self.last_act_eat = out_t
+                    self.old_env = self.new_env
         else:
             pass
         self.tiles.remove(out_t)
@@ -128,6 +151,22 @@ class Player():
                     return -1
             else:
                 return -1
+        elif self.type == 'ai':  # 碰同computer
+            if self.is_pong(tile):  # 能碰
+                self.tiles.remove(tile)
+                self.tiles.remove(tile)
+                t = self.computer_choose()
+                self.tiles.remove(t)
+                if hu_judge.hu_distance(self.tiles) < self.hu_dis:
+                    print(str(self.id) + "碰" + utils.get_tile_name(tile))
+                    self.pong_tiles.append([tile] * 3)
+                    self.tiles += [t]
+                    return self.out_tiles(t)
+                else:
+                    self.tiles += [tile, tile, t]
+                    return -1
+            else:
+                return -1
         else:
             return -1
 
@@ -159,6 +198,25 @@ class Player():
                     return self.out_tiles()
             return -1
         elif self.type == 'computer':
+            if len(eat_choice) > 0:
+                print(str(self.id) + "吃了" + utils.get_tile_name(tile))
+                c = eat_choice[0]
+                if c == 0:  # 吃左边
+                    self.tiles.remove(tile + 1)
+                    self.tiles.remove(tile + 2)
+                    self.eat_tiles = self.eat_tiles + [tile, tile + 1, tile + 2]
+                elif c == 1:  # 吃中间
+                    self.tiles.remove(tile - 1)
+                    self.tiles.remove(tile + 1)
+                    self.eat_tiles = self.eat_tiles + [tile - 1, tile, tile + 1]
+                else:  # 吃右边
+                    self.tiles.remove(tile - 1)
+                    self.tiles.remove(tile - 2)
+                    self.eat_tiles = self.eat_tiles + [tile - 2, tile - 1, tile]
+                return self.out_tiles()
+            return -1
+        elif self.type == 'ai':  # 吃同computer
+
             if len(eat_choice) > 0:
                 print(str(self.id) + "吃了" + utils.get_tile_name(tile))
                 c = eat_choice[0]
