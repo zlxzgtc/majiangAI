@@ -53,7 +53,7 @@ class ResNet(keras.Model):
         # there are [b,512,h,w]
         # 自适应
         self.avgpool = layers.GlobalAveragePooling2D()
-        self.fc = layers.Dense(num_classes)
+        self.fc = layers.Dense(num_classes,activation='softmax')
 
     def call(self, input, training=None):
         x = self.stem(input)
@@ -76,39 +76,6 @@ class ResNet(keras.Model):
         return res_blocks
 
 
-def resnet18():
-    return ResNet([2, 2, 2, 2],num_classes=6)
+def resnet18(classes):
+    return ResNet([2, 2, 2, 2],num_classes=classes)
 
-
-model = resnet18()
-model.build(input_shape=(None, 32, 32, 3))
-x = np.asarray([1] * (32 * 32 * 3), dtype='float32')
-x = x.reshape((32,32,3))
-x_train = np.expand_dims(x, axis=0)
-model.predict(x_train)
-# model.summary()
-# optimizer = optimizers.Adam(lr=1e-3)
-# for epoch in range(50):
-#     for step, (x, y) in enumerate(train_data):
-#         with tf.GradientTape() as tape:
-#             logits = model(x)
-#             y_onehot = tf.one_hot(y, depth=10)
-#             loss = tf.losses.categorical_crossentropy(y_onehot, logits, from_logits=True)
-#             loss = tf.reduce_mean(loss)
-#         grads = tape.gradient(loss, model.trainable_variables)
-#         optimizer.apply_gradients(zip(grads, model.trainable_variables))
-#         if step % 100 == 0:
-#             print(epoch, step, 'loss', float(loss))
-#     total_num = 0
-#     total_correct = 0
-#
-#     logits = model(x)
-#     prob = tf.nn.softmax(logits, axis=1)
-#     pred = tf.argmax(prob, axis=1)
-#     pred = tf.cast(pred, dtype=tf.int32)
-#     correct = tf.cast(tf.equal(pred, y), dtype=tf.int32)
-#     correct = tf.reduce_sum(correct)
-#     total_num += x.shape[0]
-#     total_correct += int(correct)
-#     acc = total_correct / total_num
-#     print(epoch, 'acc:', acc)

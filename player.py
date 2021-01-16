@@ -79,7 +79,7 @@ class Player():
         elif self.type == 'ai':
             cnt = np.array(utils.get_cnt(self.tiles))
             cnt[cnt > 1] = 1
-            print("当前手牌:"+utils.get_Tiles_names(self.tiles))
+#             print("当前手牌:"+utils.get_Tiles_names(self.tiles))
             self.new_out_env = env
             if self.last_act_out != -1:
                 self.train(self.old_out_env, self.last_act_out, env, False, 0)  # 还在进行决策，所以done肯定为false
@@ -318,7 +318,7 @@ class Player():
 
     def get_reward(self, old_env, new_env, done):
         if not done:
-            reward = new_env[-1] - old_env[-1]
+            reward = old_env[-1] -new_env[-1]
         else:
             if new_env[-1] == 0:  # 我胡了
                 reward = 30
@@ -329,6 +329,7 @@ class Player():
     # 每次决策过后都把状态放到训练池， type表示要训练哪一个模型 0：out,1:eat,2:pong
     def train(self, old_env, act, new_env, done, cls):
         reward = self.reward + self.get_reward(old_env, new_env, done)
+#         print("reward:"+str(reward))
         if cls == 0:
             self.out_agent.train(old_env, act, new_env, done, reward)
         elif cls == 1:

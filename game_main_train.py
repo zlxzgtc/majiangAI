@@ -23,7 +23,8 @@ class Game():
 
     def start(self):
         for i in range(self.round):
-            print("--------------------第" + str(i + 1) + "局--------------------")
+            s = ""
+            s = s + "--------------------第" + str(i + 1) + "局--------------------\n"
             self.game_table = game_table.Gametable(False)  # 创建牌堆
             self.now_turn = (self.banker + i) % 4
             self.banker = (self.banker + i) % 4
@@ -36,8 +37,12 @@ class Game():
             # for k in range(4):
             #     print(k, ' 的牌：', utils.get_Tiles_names(self.players[k].tiles))
             self.play()
-        print("--------------------游戏结束--------------------")
-        self.print_score()
+            # s += "--------------------游戏结束--------------------\n"
+            s += self.print_score() + "\n"
+#             print(s)
+            f = "train.txt"
+            with open(f, "a") as file:
+                file.write(s)
 
     def play(self, banker=0):
         k = 0
@@ -53,7 +58,7 @@ class Game():
                     continue
             if self.mo(self.now_turn) == -1:  # 摸牌
                 self.no_hu = True
-                print("流局")
+                #                 print("流局")
                 break
             if self.player_think_hu():
                 break
@@ -106,8 +111,10 @@ class Game():
                 player.score -= self.hu_score
 
     def print_score(self):
+        s = ""
         for player in self.players:
-            print("玩家" + str(player.id) + "--当前得分：" + str(player.score))
+            s += "  玩家" + str(player.id) + "  " + str(player.score)
+        return s
 
     def next_player(self, next_id=-1):
         if next_id == -1:
@@ -144,7 +151,7 @@ class Game():
     def player_think_hu(self):  # 玩家是否自摸胡
         self.players[self.now_turn].hu_dis = hu_judge.hu_distance(self.players[self.now_turn].tiles)
         if self.players[self.now_turn].hu_dis == 0:  # 判断是否胡
-            print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
+            #             print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
             self.hu_id = self.now_turn
             self.finished = True
         return self.finished
@@ -153,8 +160,8 @@ class Game():
         for j in range(3):
             # 首先判断有没有人胡这张牌
             if hu_judge.hu_distance(self.players[(self.now_turn + j) % 4].tiles, last_tile) == 0:
-                print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
-                    self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
+                #                 print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
+                #                     self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
                 self.finished = True
                 self.hu_id = (self.now_turn + j) % 4
                 return True
