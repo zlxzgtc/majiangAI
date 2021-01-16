@@ -1,0 +1,19 @@
+<view class="container">
+  <image class="backgroundimg" src='../../images/startbackground.jpg'></image>
+  <view class="choose">
+    <text>选择难度</text>
+  </view>
+  <view class="degree">
+    <view class="{{choosed[0] ? 'degree-button-b': 'degree-button'}}" data-index="0" bindtap="choose">
+      <text>初级</text>
+    </view>
+    <view class="{{choosed[1] ? 'degree-button-b': 'degree-button'}}" data-index="1" bindtap="choose">
+      <text>中级</text>
+    </view>
+  </view>
+  <view class="start">
+    <view class="start-button" bindtap="start">
+      <text>点击开始</text>
+    </view>
+  </view>
+</view>
