@@ -6,10 +6,9 @@ import player
 import game_table
 import hu_judge
 
-
 class Game():
 
-    def __init__(self, players=['ai', 'computer', 'computer', 'computer'], banker=0, round=1):
+    def __init__(self, players=['human', 'computer', 'computer', 'computer'], banker=0, round=1):
         self.finished = False
         self.players = []
         for i in range(4):
