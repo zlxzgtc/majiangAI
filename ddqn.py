@@ -1,172 +1,119 @@
-import argparse
-import os
 import random
-
 import numpy as np
-
-import gym
+from collections import deque
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import backend as K
+import os
 import tensorflow as tf
-# import tensorlayer as tl
+import utils
+import resnet
+
+EPISODES = 5000
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--train', dest='train', default=False)
-parser.add_argument('--test', dest='test', default=True)
+class DDQNAgent:
+    def __init__(self, state_size, action_size, name):
+        self.state_size = state_size
+        self.action_size = action_size
+        self.memory = deque(maxlen=2000)
+        self.gamma = 0.5  # discount rate
+        self.epsilon = 1.0  # exploration rate
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.99
+        self.learning_rate = 0.001
+        self.model = self._build_model()
+        self.target_model = self._build_model()
+        self.update_target_model()
+        self.count = 0  # 统计训练次数
+        self.batch_size = 32
+        self.name = name
+        if os.path.isfile("./{}.h5".format(name)):
+            self.load("./{}.h5".format(name))
 
-parser.add_argument('--gamma', type=float, default=0.95)
-parser.add_argument('--lr', type=float, default=0.005)
-parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--eps', type=float, default=0.1)
+    def _huber_loss(self, y_true, y_pred, clip_delta=1.0):
+        error = y_true - y_pred
+        cond = K.abs(error) <= clip_delta
 
-parser.add_argument('--train_episodes', type=int, default=200)
-parser.add_argument('--test_episodes', type=int, default=10)
-args = parser.parse_args()
+        squared_loss = 0.5 * K.square(error)
+        quadratic_loss = 0.5 * K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
 
-ALG_NAME = 'DDQN'
-ENV_ID = 'CartPole-v1'
+        return K.mean(tf.where(cond, squared_loss, quadratic_loss))
 
-class ReplayBuffer:
-    def __init__(self, capacity=10000):
-        self.capacity = capacity
-        self.buffer = []
-        self.position = 0
+    def _build_model(self):
+        # Neural Net for Deep-Q learning Model
+        # model = Sequential()
+        # model.add(Dense(128, input_dim=self.state_size, activation='relu'))
+        # model.add(Dense(123, activation='relu'))
+        # model.add(Dense(self.action_size, activation='softmax'))
+        # model.compile(loss=self._huber_loss,
+        #               optimizer=Adam(lr=self.learning_rate))
+        model = resnet.resnet18()
+        model.build(input_shape=(None, 32, 32, 3), num_class=self.action_size)
 
-    def push(self, state, action, reward, next_state, done):
-        if len(self.buffer) < self.capacity:
-            self.buffer.append(None)
-        self.buffer[self.position] = (state, action, reward, next_state, done)
-        self.position = int((self.position + 1) % self.capacity)
+        return model
 
-    def sample(self, batch_size = args.batch_size):
-        batch = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = map(np.stack, zip(*batch))
-        """ 
-        the * serves as unpack: sum(a,b) <=> batch=(a,b), sum(*batch) ;
-        zip: a=[1,2], b=[2,3], zip(a,b) => [(1, 2), (2, 3)] ;
-        the map serves as mapping the function on each list element: map(square, [2,3]) => [4,9] ;
-        np.stack((1,2)) => array([1, 2])
-        """
-        return state, action, reward, next_state, done
+    def update_target_model(self):
+        # copy weights from model to target_model
+        self.target_model.set_weights(self.model.get_weights())
 
+    def memorize(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
 
-class Agent:
-    def __init__(self, env):
-        self.env = env
-        self.state_dim = self.env.observation_space.shape[0]
-        self.action_dim = self.env.action_space.n
+    def act(self, state, cnt):
+        # 首先获取所有可能的动作
+        state = state.reshape((1, self.state_size))
+        cnt = np.array(cnt)
+        choice = np.argwhere(cnt == 1)
+        print("可选出的牌：" + utils.get_Cnt_names(cnt))
+        if np.random.rand() <= self.epsilon:
+            return choice[random.randrange(len(choice))][0]  # 随机选择一个动作
+        act_values = self.model.predict(state) + cnt  # 否则选择估值最大的 +(有牌可出的选项+1)
+        print("建议出牌" + utils.get_tile_name(np.argmax(act_values)))
+        return np.argmax(act_values)  # returns action
 
-        def create_model(input_state_shape):
-            model = tf.keras.Sequential()
-            input_layer = tl.layers.Input(input_state_shape)
-            layer_1 = tl.layers.Dense(n_units=32, act=tf.nn.relu)(input_layer)
-            layer_2 = tl.layers.Dense(n_units=16, act=tf.nn.relu)(layer_1)
-            output_layer = tl.layers.Dense(n_units=self.action_dim)(layer_2)
-            return tl.models.Model(inputs=input_layer, outputs=output_layer)
+    def replay(self, batch_size):
+        minibatch = random.sample(self.memory, batch_size)  # 随机取样
+        for state, action, reward, next_state, done in minibatch:
+            target = self.model.predict(state)
+            if done:
+                target[0][action] = reward
+            else:
+                # a = self.model.predict(next_state)[0]
+                t = self.target_model.predict(next_state)[0]
+                target[0][action] = reward + self.gamma * np.amax(t)
+                # target[0][action] = reward + self.gamma * t[np.argmax(a)]
+            self.model.fit(state, target, epochs=1, verbose=0)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
-        self.model = create_model([None, self.state_dim])
-        self.target_model = create_model([None, self.state_dim])
-        self.model.train()
-        self.target_model.eval()
-        self.model_optim = tf.optimizers.Adam(lr=args.lr)
+    def load(self, name):
+        self.model.load_weights(name)
 
-        self.epsilon = args.eps
+    def save(self, name):
+        self.model.save_weights(name)
 
-        self.buffer = ReplayBuffer()
+    def train(self, state0, act0, state1, done, reward):
+        self.count += 1
+        state0 = self.reshape_input(state0)
+        state1 = self.reshape_input(state1)
+        # state0 = np.reshape(state0, [1, self.state_size])
+        # state1 = np.reshape(state1, [1, self.state_size])
+        self.memorize(state0, act0, reward, state1, done)
+        if done:
+            self.update_target_model()
+            print("train_{}: {}, score: {}, e: {:.2}"
+                  .format(self.count, self.name, reward, self.epsilon))
+        if len(self.memory) > self.batch_size:
+            self.replay(self.batch_size)
+            # if self.count % self.batch_size == 0:
+            self.save("./{}.h5".format(self.name))
 
-    def target_update(self):
-        """Copy q network to target q network"""
-        for weights, target_weights in zip(
-                self.model.trainable_weights, self.target_model.trainable_weights):
-            target_weights.assign(weights)
-
-    def choose_action(self, state):
-        if np.random.uniform() < self.epsilon:
-            return np.random.choice(self.action_dim)
-        else:
-            q_value = self.model(state[np.newaxis, :])[0]
-            return np.argmax(q_value)
-
-    def replay(self):
-        for _ in range(10):
-            states, actions, rewards, next_states, done = self.buffer.sample()
-            # targets [batch_size, action_dim]
-            # Target represents the current fitting level
-            target = self.target_model(states).numpy()
-            # next_q_values [batch_size, action_diim]
-            next_target = self.target_model(next_states).numpy()
-            # next_q_value [batch_size, 1]
-            next_q_value = next_target[
-                range(args.batch_size), np.argmax(self.model(next_states), axis=1)
-            ]
-            # next_q_value = tf.reduce_max(next_q_value, axis=1)
-            target[range(args.batch_size), actions] = rewards + (1 - done) * args.gamma * next_q_value
-
-            # use sgd to update the network weight
-            with tf.GradientTape() as tape:
-                q_pred = self.model(states)
-                loss = tf.losses.mean_squared_error(target, q_pred)
-            grads = tape.gradient(loss, self.model.trainable_weights)
-            self.model_optim.apply_gradients(zip(grads, self.model.trainable_weights))
-
-
-    def test_episode(self, test_episodes):
-        for episode in range(test_episodes):
-            state = self.env.reset().astype(np.float32)
-            total_reward, done = 0, False
-            while not done:
-                action = self.model(np.array([state], dtype=np.float32))[0]
-                action = np.argmax(action)
-                next_state, reward, done, _ = self.env.step(action)
-                next_state = next_state.astype(np.float32)
-
-                total_reward += reward
-                state = next_state
-                self.env.render()
-            print("Test {} | episode rewards is {}".format(episode, total_reward))
-
-    def train(self, train_episodes=200):
-        if args.train:
-            for episode in range(train_episodes):
-                total_reward, done = 0, False
-                state = self.env.reset().astype(np.float32)
-                while not done:
-                    action = self.choose_action(state)
-                    next_state, reward, done, _ = self.env.step(action)
-                    next_state = next_state.astype(np.float32)
-                    self.buffer.push(state, action, reward, next_state, done)
-                    total_reward += reward
-                    state = next_state
-                    # self.render()
-                if len(self.buffer.buffer) > args.batch_size:
-                    self.replay()
-                    self.target_update()
-                print('EP{} EpisodeReward={}'.format(episode, total_reward))
-
-            self.saveModel()
-        if args.test:
-            self.loadModel()
-            self.test_episode(test_episodes=args.test_episodes)
-
-    def saveModel(self):
-        path = os.path.join('model', '_'.join([ALG_NAME, ENV_ID]))
-        if not os.path.exists(path):
-            os.makedirs(path)
-        tl.files.save_weights_to_hdf5(os.path.join(path, 'model.hdf5'), self.model)
-        tl.files.save_weights_to_hdf5(os.path.join(path, 'target_model.hdf5'), self.target_model)
-        print('Saved weights.')
-
-    def loadModel(self):
-        path = os.path.join('model', '_'.join([ALG_NAME, ENV_ID]))
-        if os.path.exists(path):
-            print('Load DQN Network parametets ...')
-            tl.files.load_hdf5_to_weights_in_order(os.path.join(path, 'model.hdf5'), self.model)
-            tl.files.load_hdf5_to_weights_in_order(os.path.join(path, 'target_model.hdf5'), self.target_model)
-            print('Load weights!')
-        else: print("No model file find, please train model first...")
-
-
-if __name__ == '__main__':
-    env = gym.make(ENV_ID)
-    agent = Agent(env)
-    agent.train(train_episodes=args.train_episodes)
-    env.close()
+    # 对输入进行格式化
+    def reshape_input(self, x):
+        x = x + [0] * (32 * 32 * 3 - len(x))
+        x = np.asarray(x, dtype='float32')
+        x = x.reshape((32, 32, 3))
+        x = np.expand_dims(x, axis=0)
+        return x

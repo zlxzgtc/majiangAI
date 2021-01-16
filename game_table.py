@@ -1,6 +1,7 @@
 from random import shuffle
 import utils
 
+
 class Gametable():
     type = ["万", "条", "筒"]
     s_type = ["东", "南", "西", "北", "白", "发", "中"]

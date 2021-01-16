@@ -1,13 +1,13 @@
-import Gametable
+import game_table
 
 
 # 麻将牌的名称
 def get_tile_name(t):
     if t >= 0:
         if t <= 26:
-            return str(t % 9 + 1) + Gametable.Gametable.type[t // 9]
+            return str(t % 9 + 1) + game_table.Gametable.type[t // 9]
         elif t <= 33:
-            return Gametable.Gametable.s_type[t - 27]
+            return game_table.Gametable.s_type[t - 27]
     return ''
 
 
@@ -35,4 +35,17 @@ def get_cnt(tiles):
     cnt = [0] * 34
     for i in range(34):
         cnt[i] = tiles.count(i)
+    return cnt
+
+
+def get_eat_cnt(choice):
+    cnt = [0] * 4
+    for c in choice:
+        cnt[c] += 1
+    return cnt
+
+def get_pong_cnt(choice):
+    cnt = [0] * 2
+    for c in choice:
+        cnt[c] += 1
     return cnt

@@ -8,7 +8,6 @@ def get_hu_dis(tiles):
     for i in range(3):
         for j in range(9):
             t = i * 9 + j
-
             if cnt[t] > 0:
                 if cnt[t] == 2:
                     tiles.remove(t)

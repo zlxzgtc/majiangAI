@@ -2,6 +2,7 @@ import utils
 from copy import deepcopy
 import numpy as np
 import hu_judge
+import ddqn
 
 
 class Player():
@@ -16,13 +17,36 @@ class Player():
         self.gang_tiles = []
         self.hu_dis = 11  # 初始化向听数为最大向听数
         self.score = 0
+        if type == 'ai':
+            self.out_agent = ddqn.DDQNAgent(34 * 6 + 6, 34, 'out')  # 打牌模型 0-33
+            self.eat_agent = ddqn.DDQNAgent(34 * 6 + 6, 4, 'eat')  # 吃牌模型 0,1,2,3(不吃)
+            self.pong_agent = ddqn.DDQNAgent(34 * 6 + 6, 2, 'pong')  # 碰牌模型 0(不碰),1(碰)
+            self.old_out_env = []
+            self.new_out_env = []
+            self.old_eat_env = []
+            self.old_pong_env = []
+            self.last_act_out = -1
+            self.last_act_eat = -1
+            self.last_act_pong = -1
+            self.last_act = 0  # 记录上一次的操作,用来判断是否进行train 0:摸牌,1：吃，2：碰
+            self.reward = 0
+
     def game_init(self):
         self.tiles = []  # 我的手牌
         self.pong_tiles = []
         self.eat_tiles = []
         self.gang_tiles = []
         self.hu_dis = 11  # 初始化向听数为最大向听数
-
+        if self.type =='ai':
+            self.old_out_env = []
+            self.new_out_env = []
+            self.old_eat_env = []
+            self.old_pong_env = []
+            self.last_act_out = -1
+            self.last_act_eat = -1
+            self.last_act_pong = -1
+            self.last_act = 0  # 记录上一次的操作,用来判断是否进行train 0:摸牌,1：吃，2：碰
+            self.reward = 0
 
     # 游戏开始后，发牌
     def set_tile(self, tiles):
@@ -38,7 +62,7 @@ class Player():
         self.tiles.sort()
 
     # 玩家选择一张牌打出
-    def out_tiles(self, t=-1):
+    def out_tiles(self, t=-1, env=[]):
         if self.type == 'human':
             # 输出所有手牌
             for item in self.tiles:
@@ -52,10 +76,26 @@ class Player():
                 out_t = t
             else:
                 out_t = self.computer_choose()
+        elif self.type == 'ai':
+            cnt = np.array(utils.get_cnt(self.tiles))
+            cnt[cnt > 1] = 1
+            print("当前手牌:"+utils.get_Tiles_names(self.tiles))
+            self.new_out_env = env
+            if self.last_act_out != -1:
+                self.train(self.old_out_env, self.last_act_out, env, False, 0)  # 还在进行决策，所以done肯定为false
+            out_t = self.last_act_out = self.out_agent.act(env, cnt)
+            self.old_out_env = env
+            if self.last_act == 0:
+                if self.last_act_eat != -1:
+                    self.train(self.old_eat_env, self.last_act_eat, env, False, 1)
+                    self.last_act_eat = -1
+                if self.last_act_pong != -1:
+                    self.train(self.old_pong_env, self.last_act_pong, env, False, 2)
+                    self.last_act_pong = -1
         else:
             pass
         self.tiles.remove(out_t)
-        print(str(self.id)+"打出" + utils.get_tile_name(out_t) + ",打出后：" + utils.get_Tiles_names(self.tiles))
+        # print(str(self.id) + "打出" + utils.get_tile_name(out_t) + ",打出后：" + utils.get_Tiles_names(self.tiles))
         return out_t
 
     # 判断能不能碰
@@ -92,8 +132,8 @@ class Player():
                 eat_choice.append(1)
         return eat_choice
 
-    def think_pong(self, tile):
-        if self.type == 'human':
+    def think_pong(self, tile, env=[]):
+        if self.type == 'human':  # 待完善
             if self.is_pong(tile):
                 print('是否要碰?(y/n)')
                 flag = input()
@@ -103,7 +143,7 @@ class Player():
                     self.pong_tiles.append([tile] * 3)
                     return self.out_tiles()
             return -1
-        elif self.type == 'computer':
+        elif self.type == 'computer':  # 返回是否碰
             if self.is_pong(tile):
                 # print("如果碰了，推荐出牌：",Utils.get_tile_name(t))
                 # print("当前手牌：",Utils.get_Tiles_names(self.tiles))
@@ -112,21 +152,38 @@ class Player():
                 t = self.computer_choose()
                 self.tiles.remove(t)
                 if hu_judge.hu_distance(self.tiles) < self.hu_dis:
-                    print(str(self.id) + "碰" + utils.get_tile_name(tile))
+                    # print(str(self.id) + "碰" + utils.get_tile_name(tile))
                     self.pong_tiles.append([tile] * 3)
                     self.tiles += [t]
-                    return self.out_tiles(t)
+                    c = 1
                 else:
                     self.tiles += [tile, tile, t]
-                    return -1
+                    c = 0
             else:
-                return -1
+                c = 0
+            return c
+        elif self.type == 'ai':  # 返回是否碰
+            pong_choice = [0]
+            if self.is_pong(tile):  # 能碰
+                self.old_pong_env = env
+                pong_choice.append(1)
+                c = self.pong_agent.act(env, utils.get_pong_cnt(pong_choice))
+                if c == 1:  # 选择碰
+                    self.tiles.remove(tile)
+                    self.tiles.remove(tile)
+                    self.pong_tiles += [tile] * 3
+                self.last_act = 2
+                self.old_pong_env = env
+                self.last_act_pong = c
+            else:
+                c = 0
+            return c
         else:
             return -1
 
-    def think_eat(self, tile):
+    def think_eat(self, tile, env=[]):  # 返回为吃的选择
         add_tiles = np.asarray([[0, 1, 2], [-1, 0, 1], [-1, -2, 0]])
-        print(utils.get_Tiles_names(self.tiles)+"能不能吃？"+utils.get_tile_name(tile))
+        # print(utils.get_Tiles_names(self.tiles)+"能不能吃？"+utils.get_tile_name(tile))
         eat_choice = self.is_eat(tile)
         if self.type == 'human':
             if len(eat_choice) > 0:
@@ -153,7 +210,7 @@ class Player():
             return -1
         elif self.type == 'computer':
             if len(eat_choice) > 0:
-                print(str(self.id) + "吃了" + utils.get_tile_name(tile))
+                # print(str(self.id) + "吃了" + utils.get_tile_name(tile))
                 c = eat_choice[0]
                 if c == 0:  # 吃左边
                     self.tiles.remove(tile + 1)
@@ -167,8 +224,35 @@ class Player():
                     self.tiles.remove(tile - 1)
                     self.tiles.remove(tile - 2)
                     self.eat_tiles = self.eat_tiles + [tile - 2, tile - 1, tile]
-                return self.out_tiles()
-            return -1
+            else:
+                c = 3
+            return c
+        elif self.type == 'ai':
+            if len(eat_choice) > 0:
+                eat_choice.append(3)
+                c = self.eat_agent.act(env, utils.get_eat_cnt(eat_choice))
+                if c == 0:  # 吃左边
+                    self.tiles.remove(tile + 1)
+                    self.tiles.remove(tile + 2)
+                    self.eat_tiles = self.eat_tiles + [tile, tile + 1, tile + 2]
+                elif c == 1:  # 吃中间
+                    self.tiles.remove(tile - 1)
+                    self.tiles.remove(tile + 1)
+                    self.eat_tiles = self.eat_tiles + [tile - 1, tile, tile + 1]
+                elif c == 2:  # 吃右边
+                    self.tiles.remove(tile - 1)
+                    self.tiles.remove(tile - 2)
+                    self.eat_tiles = self.eat_tiles + [tile - 2, tile - 1, tile]
+                else:  # 没吃
+                    pass
+                self.last_act = 1
+                self.old_eat_env = env
+                self.last_act_eat = c
+            else:
+                c = 3
+            # if c != 3:
+                # print(str(self.id) + "吃了" + utils.get_tile_name(tile))
+            return c
         else:
             pass
 
@@ -221,3 +305,35 @@ class Player():
             ran = int(np.floor(np.random.rand() * len(list_dis)))
             t = list_dis[ran]
         return t
+
+    # def train_eat(self, env, done):  # 之前做过关于吃的决策,env表示当前状态
+    #     if self.last_act_eat != -1:
+    #         self.new_env = env
+    #         reward = self.get_reward(done)
+    #         self.eat_agent.train(self.old_env, self.last_act_eat, self.new_env, done, reward)
+    #         self.old_env = self.new_env
+    #         self.last_act_eat = -1
+    #     else:
+    #         self.old_env = env
+
+    def get_reward(self, old_env, new_env, done):
+        if not done:
+            reward = new_env[-1] - old_env[-1]
+        else:
+            if new_env[-1] == 0:  # 我胡了
+                reward = 30
+            else:
+                reward = -10  # 别人胡了
+        return reward
+
+    # 每次决策过后都把状态放到训练池， type表示要训练哪一个模型 0：out,1:eat,2:pong
+    def train(self, old_env, act, new_env, done, cls):
+        reward = self.reward + self.get_reward(old_env, new_env, done)
+        if cls == 0:
+            self.out_agent.train(old_env, act, new_env, done, reward)
+        elif cls == 1:
+            self.eat_agent.train(old_env, act, new_env, done, reward)
+            self.last_act_eat = -1
+        else:
+            self.pong_agent.train(old_env, act, new_env, done, reward)
+            self.last_act_pong = -1
