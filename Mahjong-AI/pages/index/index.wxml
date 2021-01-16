@@ -2,7 +2,13 @@
   <image class="backgroundimg" src='../../images/background.jpeg'></image>
   <view class="top">
     <view class="player-two playershape">
-      <view class="hand-two">
+      <view wx:if="{{huid == 1}}" class="hand-two">
+        <view style="height:20px" wx:for="{{ptwohand}}" wx:for-item="i">
+          <image class="is-rotate-left" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
+          </image>
+        </view>
+      </view>
+      <view wx:else class="hand-two">
         <view style="height:20px" wx:for="{{ptwohand}}" wx:for-item="i">
           <image class="is-rotate-left" style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
           </image>
@@ -17,11 +23,17 @@
     </view>
     <view class="middle">
       <view class="player-three playershape">
-        <view class="hand-three">
+        <view wx:if="{{huid == 2}}" class="hand-three">
           <view wx:for="{{pthreehand}}" wx:for-item="i">
-          <image style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
-          </image>
+            <image style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
+            </image>
+          </view>
         </view>
+        <view wx:else class="hand-three">
+          <view wx:for="{{pthreehand}}" wx:for-item="i">
+            <image style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
+            </image>
+          </view>
         </view>
         <view class="cpk-three">
           <view class="is-rotate-top" wx:for="{{pthreecpk}}" wx:for-item="i">
@@ -34,12 +46,12 @@
         <view class="lastcount">
           剩余牌数：{{lastcount}}
         </view>
-        <view class="score">
+        <!-- <view class="score">
           <text>玩家1得分：{{score[0]}}\n玩家2得分：{{score[1]}}</text>
         </view>
         <view class="score">
           <text>玩家3得分：{{score[2]}}\n玩家4得分：{{score[3]}}</text>
-        </view>
+        </view> -->
       </view>
       <view class="desk playershape">
         <view wx:for="{{desklist}}" wx:for-item="i">
@@ -58,8 +70,8 @@
         <view class="cpk-button playershape">
           <view class="buttonshape chow">吃</view>
           <view class="buttonshape pong">碰</view>
-          <view class="buttonshape kong">杠</view>
           <view class="buttonshape win">胡</view>
+          <view class="buttonshape kong">过</view>
         </view>
       </view>
     </view>
@@ -70,7 +82,13 @@
           </image>
         </view>
       </view>
-      <view class="hand-four">
+      <view wx:if="{{huid == 3}}" class="hand-four">
+        <view style="height:20px" wx:for="{{pfourhand}}" wx:for-item="i">
+          <image class="is-rotate-right" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
+          </image>
+        </view>
+      </view>
+      <view wx:else class="hand-four">
         <view style="height:20px" wx:for="{{pfourhand}}" wx:for-item="i">
           <image class="is-rotate-right" style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
           </image>
@@ -89,7 +107,8 @@
       <view wx:for="{{ponehand}}" wx:for-item="i">
         <!-- <view wx:for="{{[1, 2, 3, 4, 5, 6, 7, 8, 9]}}" wx:for-item="j"> -->
         <!-- <view wx:if="{{i <= j}}"> -->
-        <image style="width:30px;text-align:center" src="{{mahjong[i].address}}" mode='widthFix' data-index='{{i}}' bindtap="discard">
+        <image style="width:30px;text-align:center" src="{{mahjong[i].address}}" mode='widthFix' data-index='{{i}}'
+          bindtap="discard">
         </image>
         <!-- </view> -->
         <!-- </view> -->

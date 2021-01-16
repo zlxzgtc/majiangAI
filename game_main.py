@@ -8,7 +8,7 @@ import hu_judge
 
 class Game():
 
-    def __init__(self, players=['computer', 'computer', 'computer', 'computer'], banker=0, round=1):
+    def __init__(self, players=['human', 'computer', 'computer', 'computer'], banker=0, round=1):
         self.finished = False
         self.players = []
         for i in range(4):
@@ -19,6 +19,8 @@ class Game():
         self.hu_id = -1  # -1表示没人胡
         self.now_turn = banker
         self.no_hu = False
+        self.last_tile =-1
+
 
     def start(self):
         for i in range(self.round):
@@ -28,6 +30,7 @@ class Game():
             self.now_turn = (self.banker + i) % 4
             self.banker = (self.banker + i) % 4
             self.no_hu = False
+            self.next_tile =-1
             for k in range(4):  # 玩家上局手牌清空
                 self.players[k].game_init()
             for k in range(0, 16):
@@ -38,17 +41,15 @@ class Game():
             self.play()
             # s += "--------------------游戏结束--------------------\n"
             s += self.print_score() + "\n"
-            print(self.hu_id)
 #             print(s)
-            # f = "train.txt"
-            # with open(f, "a") as file:
-            #     file.write(s)
+            f = "train.txt"
+            with open(f, "a") as file:
+                file.write(s)
 
     def play(self, banker=0):
         k = 0
         self.finished = False
         while not self.finished:  # 游戏未结束，四名玩家轮流出牌
-            # print("打出的："+utils.get_Cnt_names(self.game_table.out_pile))
             k += 1
             # print("当前----第", k, "轮")
             if k != 1:  # 除了第一个人打出的牌，其余都要判断是否能吃
@@ -77,14 +78,14 @@ class Game():
         # 游戏结束计算得分
         self.count_score()
         self.print_score()
-        # ai_player = self.players[0]
-        # ai_player.train(ai_player.old_out_env, ai_player.last_act, self.env(0), True, 0)
-        # if ai_player.last_act_eat != -1:
-        #     ai_player.train(ai_player.old_eat_env, ai_player.last_act_eat, self.env(0), True, 1)
-        #     ai_player.last_act_eat = -1
-        # if ai_player.last_act_pong != -1:
-        #     ai_player.train(ai_player.old_pong_env, ai_player.last_act_pong, self.env(0), True, 2)
-        #     ai_player.last_act_pong = -1
+        ai_player = self.players[0]
+        ai_player.train(ai_player.old_out_env, ai_player.last_act, self.env(0), True, 0)
+        if ai_player.last_act_eat != -1:
+            ai_player.train(ai_player.old_eat_env, ai_player.last_act_eat, self.env(0), True, 1)
+            ai_player.last_act_eat = -1
+        if ai_player.last_act_pong != -1:
+            ai_player.train(ai_player.old_pong_env, ai_player.last_act_pong, self.env(0), True, 2)
+            ai_player.last_act_pong = -1
 
     def env(self, id):
         my_tiles = utils.get_cnt(self.players[id].tiles)
@@ -152,7 +153,7 @@ class Game():
     def player_think_hu(self):  # 玩家是否自摸胡
         self.players[self.now_turn].hu_dis = hu_judge.hu_distance(self.players[self.now_turn].tiles)
         if self.players[self.now_turn].hu_dis == 0:  # 判断是否胡
-            print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
+            #             print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
             self.hu_id = self.now_turn
             self.finished = True
         return self.finished
@@ -161,8 +162,8 @@ class Game():
         for j in range(3):
             # 首先判断有没有人胡这张牌
             if hu_judge.hu_distance(self.players[(self.now_turn + j) % 4].tiles, last_tile) == 0:
-                print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
-                                    self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
+                #                 print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
+                #                     self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
                 self.finished = True
                 self.hu_id = (self.now_turn + j) % 4
                 return True
@@ -182,7 +183,3 @@ class Game():
             if c != 0:
                 pong_id = (self.now_turn + j) % 4
         return pong_id
-
-
-game = Game(round=2)
-game.start()

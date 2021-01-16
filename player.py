@@ -65,12 +65,13 @@ class Player():
     def out_tiles(self, t=-1, env=[]):
         if self.type == 'human':
             # 输出所有手牌
-            for item in self.tiles:
-                print(utils.get_tile_name(item), end='\t')
-            print()
-            print("\t".join(list(map(str, list(range(0, len(self.tiles)))))))
-            t = int(input('请选择一张牌打出:'))
-            out_t = self.tiles[t]
+            # for item in self.tiles:
+            #     print(utils.get_tile_name(item), end='\t')
+            # print()
+            # print("\t".join(list(map(str, list(range(0, len(self.tiles)))))))
+            # t = int(input('请选择一张牌打出:'))
+            # out_t = self.tiles[t]
+            out_t = t
         elif self.type == 'computer':  # 简单自动出牌,优先出单张字牌，然后出单张的数牌
             if t != -1:
                 out_t = t
@@ -132,12 +133,10 @@ class Player():
                 eat_choice.append(1)
         return eat_choice
 
-    def think_pong(self, tile, env=[]):
+    def think_pong(self, tile, env=[],is_pong = False):
         if self.type == 'human':  # 待完善
             if self.is_pong(tile):
-                print('是否要碰?(y/n)')
-                flag = input()
-                if flag == 'y':
+                if is_pong:
                     self.tiles.remove(tile)
                     self.tiles.remove(tile)
                     self.pong_tiles.append([tile] * 3)
