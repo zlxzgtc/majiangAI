@@ -5,10 +5,13 @@ import utils
 import player
 import game_table
 import hu_judge
+import tensorflow as tf
+import os
+
 
 class Game():
 
-    def __init__(self, players=['human', 'computer', 'computer', 'computer'], banker=0, round=1):
+    def __init__(self, players=['ai', 'computer', 'computer', 'computer'], banker=0, round=1):
         self.finished = False
         self.players = []
         for i in range(4):
@@ -23,7 +26,7 @@ class Game():
     def start(self):
         for i in range(self.round):
             s = ""
-            s = s + "--------------------第" + str(i + 1) + "局--------------------\n"
+            print("--------------------第" + str(i + 1) + "局--------------------\n")
             self.game_table = game_table.Gametable(False)  # 创建牌堆
             self.now_turn = (self.banker + i) % 4
             self.banker = (self.banker + i) % 4
@@ -36,9 +39,9 @@ class Game():
             # for k in range(4):
             #     print(k, ' 的牌：', utils.get_Tiles_names(self.players[k].tiles))
             self.play()
-            # s += "--------------------游戏结束--------------------\n"
-            s += self.print_score() + "\n"
-#             print(s)
+            print("--------------------游戏结束--------------------\n")
+            print(self.print_score())
+            #             print(s)
             f = "train.txt"
             with open(f, "a") as file:
                 file.write(s)
@@ -57,7 +60,7 @@ class Game():
                     continue
             if self.mo(self.now_turn) == -1:  # 摸牌
                 self.no_hu = True
-                #                 print("流局")
+                print("流局")
                 break
             if self.player_think_hu():
                 break
@@ -150,7 +153,7 @@ class Game():
     def player_think_hu(self):  # 玩家是否自摸胡
         self.players[self.now_turn].hu_dis = hu_judge.hu_distance(self.players[self.now_turn].tiles)
         if self.players[self.now_turn].hu_dis == 0:  # 判断是否胡
-            #             print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
+            print("玩家" + str(self.now_turn) + "自摸胡了:" + utils.get_Tiles_names(self.players[self.now_turn].tiles))
             self.hu_id = self.now_turn
             self.finished = True
         return self.finished
@@ -159,8 +162,8 @@ class Game():
         for j in range(3):
             # 首先判断有没有人胡这张牌
             if hu_judge.hu_distance(self.players[(self.now_turn + j) % 4].tiles, last_tile) == 0:
-                #                 print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
-                #                     self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
+                print("玩家" + str((self.now_turn + j) % 4) + "胡了:" + utils.get_Tiles_names(
+                    self.players[(self.now_turn + j) % 4].tiles) + utils.get_tile_name(last_tile))
                 self.finished = True
                 self.hu_id = (self.now_turn + j) % 4
                 return True
@@ -182,5 +185,8 @@ class Game():
         return pong_id
 
 
+gpu = tf.config.experimental.list_physical_devices(device_type='GPU')[0]
+tf.config.experimental.set_memory_growth(gpu, True)
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 game = Game(round=1000)
 game.start()
