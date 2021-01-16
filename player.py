@@ -17,6 +17,7 @@ class Player():
         self.gang_tiles = []
         self.hu_dis = 11  # 初始化向听数为最大向听数
         self.score = 0
+        self.choicehhh = 3 
         if type == 'ai':
             self.out_agent = ddqn.DDQNAgent(34 * 6 + 6, 34, 'out')  # 打牌模型 0-33
             self.eat_agent = ddqn.DDQNAgent(34 * 6 + 6, 4, 'eat')  # 吃牌模型 0,1,2,3(不吃)
@@ -139,7 +140,7 @@ class Player():
                 if is_pong:
                     self.tiles.remove(tile)
                     self.tiles.remove(tile)
-                    self.pong_tiles.append([tile] * 3)
+                    self.pong_tiles+=[tile] * 3
                     return 1
             return 0
         elif self.type == 'computer':  # 返回是否碰
@@ -152,7 +153,8 @@ class Player():
                 self.tiles.remove(t)
                 if hu_judge.hu_distance(self.tiles) < self.hu_dis:
                     # print(str(self.id) + "碰" + utils.get_tile_name(tile))
-                    self.pong_tiles.append([tile] * 3)
+                    # self.pong_tiles.append([tile] * 3)
+                    self.pong_tiles+=[tile] * 3
                     self.tiles += [t]
                     c = 1
                 else:
@@ -180,33 +182,50 @@ class Player():
         else:
             return -1
 
-    def think_eat(self, tile, env=[]):  # 返回为吃的选择
+    def think_eat(self, tile, env=[],c=-1):  # 返回为吃的选择
         add_tiles = np.asarray([[0, 1, 2], [-1, 0, 1], [-1, -2, 0]])
         # print(utils.get_Tiles_names(self.tiles)+"能不能吃？"+utils.get_tile_name(tile))
         eat_choice = self.is_eat(tile)
         if self.type == 'human':
-            if len(eat_choice) > 0:
-                print('是否要吃?(y/n)')
-                flag = input()
-                if flag == 'y':
-                    eat_all = ""
-                    for choice in eat_choice:
-                        eat_all += '[' + str(choice) + ']' + utils.get_Tiles_names(add_tiles[choice] + tile)
-                    c = int(input("请选择你要怎么吃" + eat_all + ":"))
-                    if c == 0:  # 吃左边
-                        self.tiles.remove(tile + 1)
-                        self.tiles.remove(tile + 2)
-                        self.eat_tiles = self.eat_tiles + [tile, tile + 1, tile + 2]
-                    elif c == 1:  # 吃中间
-                        self.tiles.remove(tile - 1)
-                        self.tiles.remove(tile + 1)
-                        self.eat_tiles = self.eat_tiles + [tile - 1, tile, tile + 1]
-                    else:  # 吃右边
-                        self.tiles.remove(tile - 1)
-                        self.tiles.remove(tile - 2)
-                        self.eat_tiles = self.eat_tiles + [tile - 2, tile - 1, tile]
-                    return c
-            return 3
+            # if len(eat_choice) > 0:
+            #     print('是否要吃?(y/n)')
+            #     flag = input()
+            #     if flag == 'y':
+            #         eat_all = ""
+            #         for choice in eat_choice:
+            #             eat_all += '[' + str(choice) + ']' + utils.get_Tiles_names(add_tiles[choice] + tile)
+            #         c = int(input("请选择你要怎么吃" + eat_all + ":"))
+            if c == 0:  # 吃左边
+                self.tiles.remove(tile + 1)
+                self.tiles.remove(tile + 2)
+                self.eat_tiles = self.eat_tiles + [tile, tile + 1, tile + 2]
+            elif c == 1:  # 吃中间
+                self.tiles.remove(tile - 1)
+                self.tiles.remove(tile + 1)
+                self.eat_tiles = self.eat_tiles + [tile - 1, tile, tile + 1]
+            else:  # 吃右边
+                self.tiles.remove(tile - 1)
+                self.tiles.remove(tile - 2)
+                self.eat_tiles = self.eat_tiles + [tile - 2, tile - 1, tile]
+            return c
+            player = self.players[0]
+            if c==3:# buchi
+                self.mo(player_id = self.now_turn)
+                self.player_think_hu()
+            else:
+                if c == 0:  # 吃左边
+                    player.tiles.remove(self.last_tile + 1)
+                    player.tiles.remove(self.last_tile + 2)
+                    player.eat_tiles = player.eat_tiles + [self.last_tile, self.last_tile + 1, self.last_tile + 2]
+                elif c == 1:  # 吃中间
+                    player.tiles.remove(self.last_tile - 1)
+                    player.tiles.remove(self.last_tile + 1)
+                    player.eat_tiles = player.eat_tiles + [self.last_tile - 1, self.last_tile, self.last_tile + 1]
+                else:  # 吃右边
+                    player.tiles.remove(self.last_tile - 1)
+                    player.tiles.remove(self.last_tile - 2)
+                    player.eat_tiles = player.eat_tiles + [self.last_tile - 2, self.last_tile - 1, self.last_tile]       
+            return c
         elif self.type == 'computer':
             if len(eat_choice) > 0:
                 # print(str(self.id) + "吃了" + utils.get_tile_name(tile))

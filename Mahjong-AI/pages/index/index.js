@@ -5,24 +5,25 @@ Page({
   data: {
     whosturn: {},
     nowcard: {},
-    liuid:{},
     huid: -1,
-    pongid:-1,
-    chiid:{},
-    lastdiscard:{},
+    pongid: -1,
+    lastdiscard: [],
     finished: false,
-    ponehand: {},
+    ponehand: [],
     ponecpk: [],
-    ptwohand: {},
+    ptwohand: [],
     ptwocpk: [],
     pthreehand: {},
     pthreecpk: [],
     pfourhand: {},
     pfourcpk: [],
     lastcount: {},
-    score: {},
+    score: [0, 0, 0, 0],
     desklist: [],
-    recommandlist:{},
+    recommandlist: {},
+    eatchoice: 3,
+    eatchoicelist: [],
+    eatchoicetiles: [],
     mahjong: [
       {
         index: 0,
@@ -139,30 +140,30 @@ Page({
         'content-type': 'application/x-www-form-urlencoded'
       },
       success: res => {
-        that.refreshall(that,res)
-        console.log(res)
-        // while(!that.data.finished){
-          // setTimeout(function () {
-          //   console.log(111)
-          // }, 1000)
-        // }
+        that.refreshall(that, res)
+        that.setData({
+          recommandlist: res.data["recommand"]
+        })
       }
     })
-
+    if (this.data.huid == 0) {
+      this.end()
+    }
   },
   end: function () {
     var that = this
+    if (that.data.huid != -1) {
+      var content = "此次游戏结束，赢家为：\n玩家" + that.data.huid + "\n最后得分为：\n玩家1：" + that.data.score[0] + "\n玩家2：" + that.data.score[1] + "\n玩家3：" + that.data.score[2] + "\n玩家4：" + that.data.score[3]
+    } else {
+      var content = "此次游戏结束，为流局。" + "\n最后得分为：\n玩家1：" + that.data.score[0] + "\n玩家2：" + that.data.score[1] + "\n玩家3：" + that.data.score[2] + "\n玩家4：" + that.data.score[3]
+    }
     wx.showModal({
       title: '游戏结束',
-      content: '此次游戏结束，最后得分为：玩家一：' + this.data.score[0] + "，玩家二：" + this.data.score[1] + "，玩家三：" + this.data.score[2] + "，玩家四：" + this.data.score[3],
+      content: content,
       confirmText: '继续游戏',
       cancelText: '退出游戏',
       success: function (res) {
         if (res.confirm) {
-          this.setData({
-            score: [0, 0, 0, 0],
-            recommandlist: {}
-          })
           wx.redirectTo({
             url: '../index/index',
           })
@@ -175,64 +176,163 @@ Page({
       }
     })
   },
+  pong: function (e) {
+    var index = parseInt(e.currentTarget.dataset.index);
+    var that = this
+    tilesutil.pongTiles(index, (res) => {
+      that.refreshall(that, res)
+      console.log(res)
+      if (index != 3) {
+        this.remove(desklist, res.data["lastdiscard"])
+        that.setData({
+          desklist: desklist,
+        })
+      }
+      console.log(desklist)
+    })
+  },
+  eat: function (e) {
+    var index = parseInt(e.currentTarget.dataset.index);
+    var that = this
+    tilesutil.eatTiles(index, (res) => {
+      that.refreshall(that, res)
+      console.log(res)
+      var desklist = that.data.desklist
+      if (index != 3) {
+        this.remove(desklist, res.data["lastdiscard"])
+        that.setData({
+          desklist: desklist,
+        })
+      }
+      var eatchoice = that.data.eatchoicelist[index]
+      that.setData({
+        eatchoice: eatchoice,
+      })
+      console.log(desklist)
+    })
+  },
+  remove: function (array, val) {
+    for (var i = 0; i < array.length; i++) {
+      if (array[i] == val) {
+        array.splice(i, 1);
+      }
+    }
+    return -1;
+  },
+
   discard: function (e) {
     var index = parseInt(e.currentTarget.dataset.index);
     if (this.data.whosturn == 0) {
-      this.setData({
-        nowcard: index
-      })
-      console.log(this.data.nowcard)
       var that = this
       tilesutil.discardTiles(index, (res) => {
-        console.log(res)
-        that.refreshall(that,res)
-        console.log(res)
-        var desklist = that.data.desklist.concat(res.data["lastdiscard"])
-        that.setData({
-          desklist:desklist
-        })
-          // console.log(res.data["huid"])
+        that.refreshall(that, res)
+        console.log("pongid:", res.data["pong_id"])
+        if (res.data["lastdiscard"] > -1) {
+          var desklist = that.data.desklist.concat(res.data["lastdiscard"])
+          that.setData({
+            desklist: desklist,
+            pongid: res.data["pong_id"],
+          })
+        }
+        console.log(that.data.desklist)
       })
+      if (this.data.huid != -1) {
+        this.end()
+      } else {
+        this.nextplayer()
+      }
+      var a = setInterval(function () {
+        if (that.data.huid != -1) {
+          that.end()
+          clearInterval(a)
+        } else if (that.data.huid == -1 && that.data.finished) {
+          that.end()
+          clearInterval(a)
+        } else {
+          if (that.data.whosturn != 0 && that.data.pongid != 0) {
+            that.nextplayer()
+          } else if (that.data.pongid == 0) {
+            clearInterval(a)
+          } else if (that.data.whosturn == 0 && that.data.pongid != 0) {
+            that.mo()
+            console.log("pongid:", that.data.pongid)
+            clearInterval(a)
+          }
+        }
+      }, 2000)
     }
   },
-  finished: function () { //用来修改页面显示
-    if(this.data.finished){
-      if(this.data.huid==-1)
-        console.log("流局")
+  finished: function () {
+    if (this.data.finished) {
+      if (this.data.huid == -1)
+        return "流局"
       else
-        console.log(this.data.huid,"hule")
+        return "胡了"
     }
   },
-  nextplayer:function () {
+  mo: function (callback) {
+    var that = this
     wx.request({
       method: 'GET',
       dataType: 'json',
-      url: 'http://127.0.0.1:5000/nextplayer',
+      url: 'http://127.0.0.1:5000/mo',
       header: {
         'content-type': 'application/x-www-form-urlencoded'
       },
       success: function (res) {
         callback && callback(res);
+        that.refreshall(that, res)
+        console.log("ponehand:", res.data["ponehand"])
+        that.setData({
+          eatchoicelist: res.data["eatchoicelist"],
+          eatchoicetiles: res.data["eatchoicetiles"],
+          recommandlist: res.data["recommand"]
+        })
       }
     })
   },
-  refreshall:function (that,res) {
+  nextplayer: function (callback) {
+    if (this.data.whosturn != 0) {
+      var that = this
+      wx.request({
+        method: 'GET',
+        dataType: 'json',
+        url: 'http://127.0.0.1:5000/nextplayer',
+        header: {
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        success: function (res) {
+          callback && callback(res)
+          that.refreshall(that, res)
+          console.log(res)
+          if (res.data["lastdiscard"] > -1) {
+            var desklist = that.data.desklist.concat(res.data["lastdiscard"])
+            that.setData({
+              desklist: desklist,
+            })
+          }
+          console.log(that.data.desklist)
+        }
+      })
+    }
+  },
+  refreshall: function (that, res) {
     that.setData({
-      ponehand:res.data["ponehand"],
-      ptwohand:res.data["ptwohand"],
-      pthreehand:res.data["pthreehand"],
-      pfourhand:res.data["pfourhand"],
-      ponecpk:res.data["ponecpk"],
-      ptwocpk:res.data["ptwocpk"],
-      pthreecpk:res.data["pthreecpk"],
-      pfourcpk:res.data["pfourcpk"],
-      recommand:res.data["recommand"],
-      lastcount:res.data["lastcount"],
-      whosturn:res.data["whosturn"],
-      lastdiscard:res.data["lastdiscard"],
-      score:res.data["score"],
-      huid:res.data["huid"],
-      finished:res.data["finished"],
+      ponehand: res.data["ponehand"],
+      ptwohand: res.data["ptwohand"],
+      pthreehand: res.data["pthreehand"],
+      pfourhand: res.data["pfourhand"],
+      ponecpk: res.data["ponecpk"],
+      ptwocpk: res.data["ptwocpk"],
+      pthreecpk: res.data["pthreecpk"],
+      pfourcpk: res.data["pfourcpk"],
+      recommand: res.data["recommand"],
+      lastcount: res.data["lastcount"],
+      whosturn: res.data["whosturn"],
+      lastdiscard: res.data["lastdiscard"],
+      score: res.data["score"],
+      huid: res.data["huid"],
+      finished: res.data["finished"]
     })
-  }
+  },
 })

@@ -1,28 +1,28 @@
 <view class="container">
   <image class="backgroundimg" src='../../images/background.jpeg'></image>
   <view class="top">
-    <view class="player-two playershape">
-      <view wx:if="{{huid == 1}}" class="hand-two">
-        <view style="height:20px" wx:for="{{ptwohand}}" wx:for-item="i">
-          <image class="is-rotate-left" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
+    <view class="{{whosturn == 3 ? 'player-four nowplayershape': 'player-four playershape'}}">
+      <view wx:if="{{huid == 3}}" class="hand-four">
+        <view style="height:20px" wx:for="{{pfourhand}}" wx:for-item="i">
+          <image class="is-rotate-right" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
           </image>
         </view>
       </view>
-      <view wx:else class="hand-two">
-        <view style="height:20px" wx:for="{{ptwohand}}" wx:for-item="i">
-          <image class="is-rotate-left" style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
+      <view wx:else class="hand-four">
+        <view style="height:20px" wx:for="{{pfourhand}}" wx:for-item="i">
+          <image class="is-rotate-right" style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
           </image>
         </view>
       </view>
-      <view class="cpk-two">
-        <view style="height:20px" wx:for="{{ptwocpk}}" wx:for-item="i">
-          <image class="is-rotate-left" style="width:20px" src="{{mahjong[i].address}}" mode='widthFix'>
+      <view class="cpk-four">
+        <view style="height:20px" wx:for="{{pfourcpk}}" wx:for-item="i">
+          <image class="is-rotate-right" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
           </image>
         </view>
       </view>
     </view>
     <view class="middle">
-      <view class="player-three playershape">
+      <view class="{{whosturn == 2 ? 'player-three nowplayershape': 'player-three playershape'}}">
         <view wx:if="{{huid == 2}}" class="hand-three">
           <view wx:for="{{pthreehand}}" wx:for-item="i">
             <image style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
@@ -67,36 +67,44 @@
             </image>
           </view>
         </view>
-        <view class="cpk-button playershape">
-          <view class="buttonshape chow">吃</view>
-          <view class="buttonshape pong">碰</view>
-          <view class="buttonshape win">胡</view>
-          <view class="buttonshape kong">过</view>
+        <view wx:if="{{eatchoicelist.length||pong_id == 0}}" class="cpk-button playershape">
+          <view wx:if="{{eatchoicelist.length}}" wx:for="{{eatchoicelist}}" wx:for-index="j" class="chooseshape"
+            bindtap="eat" data-index="{{eatchoicelist[j]}}">
+            <view class="chiimg" wx:for="{{eatchoicetiles[j]}}" wx:if="{{eatchoicelist[j] != 3}}" wx:for-index="i"
+              data-index="{{eatchoicelist[j]}}">
+              <image style="width:20px;" src="{{mahjong[eatchoicetiles[j][i]].address}}" mode='widthFix'>
+              </image>
+            </view>
+          </view>
+          <view wx:if="{{pongid == 0}}" class="buttonshape pong" bindtap="pong" data-index="0">碰</view>
+          <view wx:if="{{eatchoicelist.length}}" class="buttonshape kong" data-index="3" bindtap="eat">过</view>
+          <view wx:if="{{pongid == 0}}" class="buttonshape kong" data-index="-1" bindtap="pong">过</view>
         </view>
       </view>
     </view>
-    <view class="player-four playershape">
-      <view class="cpk-four">
-        <view style="height:20px" wx:for="{{pfourcpk}}" wx:for-item="i">
-          <image class="is-rotate-right" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
+    <view class="{{whosturn == 1 ? 'player-two nowplayershape': 'player-two playershape'}}">
+      <view class="cpk-two">
+        <view style="height:20px" wx:for="{{ptwocpk}}" wx:for-item="i">
+          <image class="is-rotate-left" style="width:20px" src="{{mahjong[i].address}}" mode='widthFix'>
           </image>
         </view>
       </view>
-      <view wx:if="{{huid == 3}}" class="hand-four">
-        <view style="height:20px" wx:for="{{pfourhand}}" wx:for-item="i">
-          <image class="is-rotate-right" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
+      <view wx:if="{{huid == 1}}" class="hand-two">
+        <view style="height:20px" wx:for="{{ptwohand}}" wx:for-item="i">
+          <image class="is-rotate-left" style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
           </image>
         </view>
       </view>
-      <view wx:else class="hand-four">
-        <view style="height:20px" wx:for="{{pfourhand}}" wx:for-item="i">
-          <image class="is-rotate-right" style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
+      <view wx:else class="hand-two">
+        <view style="height:20px" wx:for="{{ptwohand}}" wx:for-item="i">
+          <image class="is-rotate-left" style="width:20px;" src="../../images/hidden.png" mode='widthFix'>
           </image>
         </view>
       </view>
     </view>
+
   </view>
-  <view class="player-one playershape">
+  <view class="{{whosturn == 0 ? 'player-one nowplayershape': 'player-one playershape'}}">
     <view class="cpk-one">
       <view wx:for="{{ponecpk}}" wx:for-item="i">
         <image style="width:20px;" src="{{mahjong[i].address}}" mode='widthFix'>
