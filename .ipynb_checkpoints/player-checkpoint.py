@@ -141,8 +141,8 @@ class Player():
                     self.tiles.remove(tile)
                     self.tiles.remove(tile)
                     self.pong_tiles.append([tile] * 3)
-                    return 1
-            return 0
+                    return self.out_tiles()
+            return -1
         elif self.type == 'computer':  # 返回是否碰
             if self.is_pong(tile):
                 # print("如果碰了，推荐出牌：",Utils.get_tile_name(t))
@@ -206,8 +206,8 @@ class Player():
                         self.tiles.remove(tile - 1)
                         self.tiles.remove(tile - 2)
                         self.eat_tiles = self.eat_tiles + [tile - 2, tile - 1, tile]
-                    return c
-            return 3
+                    return self.out_tiles()
+            return -1
         elif self.type == 'computer':
             if len(eat_choice) > 0:
                 # print(str(self.id) + "吃了" + utils.get_tile_name(tile))
