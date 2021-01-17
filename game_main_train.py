@@ -22,6 +22,8 @@ class Game():
         self.hu_id = -1  # -1表示没人胡
         self.now_turn = banker
         self.no_hu = False
+        self.ai_xtl=[]
+        self.ai_score=[]
 
     def start(self):
         for i in range(self.round):
@@ -39,8 +41,10 @@ class Game():
             # for k in range(4):
             #     print(k, ' 的牌：', utils.get_Tiles_names(self.players[k].tiles))
             self.play()
-            print("ai手牌："+utils.get_Tiles_names(self.players[0].tiles) )
+            print("ai手牌："+utils.get_Tiles_names(self.players[0].tiles) +"向听量："+str(self.players[0].hu_dis))
             print("--------------------游戏结束--------------------\n")
+            self.ai_xtl.append(self.players[0].hu_dis)
+            self.ai_score.append(self.players[0].score)
             print(self.print_score())
             #             print(s)
             # f = "train.txt"
@@ -191,3 +195,7 @@ tf.config.experimental.set_memory_growth(gpu, True)
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 game = Game(round=10000)
 game.start()
+with open("hu_dis.txt","w") as f:
+    f.write(str(game.ai_xtl))
+with open("score.txt","w") as f:
+    f.write(str(game.ai_score))

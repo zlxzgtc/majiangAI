@@ -25,7 +25,7 @@ class DDQNAgent:
         self.target_model = self._build_model()
         self.update_target_model()
         self.count = 0  # 统计训练次数
-        self.batch_size = 32
+        self.batch_size = 500
         self.name = name
         if os.path.isfile("./{}.h5".format(name)):
             self.load("./{}.h5".format(name))
@@ -54,7 +54,7 @@ class DDQNAgent:
         #               optimizer=Adam(lr=self.learning_rate))
         # resnet go
         model = resnet.ResNet(self.action_size)
-        model.build(input_shape=(None, 32, 3, 3))
+        model.build(input_shape=(None, 16, 16, 3))
         model.compile(loss=self._huber_loss,
                       optimizer=Adam(lr=self.learning_rate))
         return model
@@ -72,12 +72,12 @@ class DDQNAgent:
         # state = np.reshape(state, [1, self.state_size])
         cnt = np.array(cnt)
         choice = np.argwhere(cnt == 1)
-        if np.random.rand() <= self.epsilon:
-            return choice[random.randrange(len(choice))][0]  # 随机选择一个动作
-        act_values = self.model.predict(state) + cnt * 2  # 否则选择估值最大的 +(有牌可出的选项+1) ----不太行
+        # if np.random.rand() <= self.epsilon:
+        #     return choice[random.randrange(len(choice))][0]  # 随机选择一个动作
+        act_values = self.model.predict(state) + cnt * 2  # 否则选择估值最大的 +(有牌可出的选项+2)
         #         print(act_values)
         # print("可选出的牌：" + utils.get_Cnt_names(cnt))
-        # print("建议出牌" + utils.get_tile_name(np.argmax(act_values)))
+        print("建议出牌" + utils.get_tile_name(np.argmax(act_values)))
         return np.argmax(act_values)  # returns action
 
     def replay(self, batch_size):
@@ -92,7 +92,7 @@ class DDQNAgent:
                 t = self.target_model.predict(next_state)[0]
                 target[0][action] = reward + self.gamma * np.amax(t)
                 # target[0][action] = reward + self.gamma * t[np.argmax(a)]
-            self.model.fit(state, target, epochs=1, verbose=0)
+            self.model.fit(state, target, epochs=5, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 

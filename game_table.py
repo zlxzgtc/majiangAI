@@ -41,10 +41,3 @@ class Gametable():
             del self.Tiles[0]
             return tile
 
-    # def draw(self):
-    #     if self.draw_loc >= 136:
-    #         return "End"
-    #     t = self.Tiles[self.draw_loc]
-    #     self.draw_loc += 1
-    #
-    #     return t

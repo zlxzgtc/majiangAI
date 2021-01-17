@@ -1,8 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers, optimizers, Sequential
-import numpy as np
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import layers, Sequential
 
 
 class BasicBlock(layers.Layer):
@@ -14,7 +12,6 @@ class BasicBlock(layers.Layer):
         self.conv2 = layers.Conv2D(filter_num, (3, 3), strides=1, padding='same')
         self.bn2 = layers.BatchNormalization()
         if stride != 1:
-
             self.downsample = Sequential()
             self.downsample.add(layers.Conv2D(filter_num, (1, 1), strides=stride))
             # self.downsample = layers.Conv2D(filter_num, (1,1), strides = stride)
@@ -22,16 +19,12 @@ class BasicBlock(layers.Layer):
             self.downsample = lambda x: x
 
     def call(self, inputs, training=None):
-        # [b, h, w, c]
         out = self.conv1(inputs)
         out = self.bn1(out)
         out = self.relu(out)
-
         out = self.conv2(out)
         out = self.bn2(out)
-
         identity = self.downsample(inputs)
-
         output = layers.add([out, identity])
         output = tf.nn.relu(output)
         return output
