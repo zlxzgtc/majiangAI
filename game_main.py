@@ -172,12 +172,18 @@ class Game():
     # 然后判断是否有人碰 ，返回碰的人的id,无则返回-1
     def others_think_pong(self, last_tile):
         pong_id = -1
+        c = 0
         for j in range(3):
             player = self.players[(self.now_turn + j) % 4]
             if player.type == 'ai':
                 c = player.think_pong(last_tile, env=self.env(self.now_turn))
                 if c == 1:
                     self.players[self.now_turn].last_act = 2
+            elif player.type == 'human':
+                cnt = utils.get_cnt(player.tiles)
+                if cnt[last_tile] >= 2:
+                    print("0可以碰")
+                    pong_id=0
             else:
                 c = player.think_pong(last_tile)
             if c != 0:

@@ -179,10 +179,12 @@ Page({
   pong: function (e) {
     var index = parseInt(e.currentTarget.dataset.index);
     var that = this
+    console.log("111",index)
+    var desklist = this.data.desklist
     tilesutil.pongTiles(index, (res) => {
       that.refreshall(that, res)
       console.log(res)
-      if (index != 3) {
+      if (index != -1) {
         this.remove(desklist, res.data["lastdiscard"])
         that.setData({
           desklist: desklist,
@@ -215,6 +217,7 @@ Page({
     for (var i = 0; i < array.length; i++) {
       if (array[i] == val) {
         array.splice(i, 1);
+        break
       }
     }
     return -1;
@@ -240,15 +243,17 @@ Page({
         this.end()
       } else {
         this.nextplayer()
+
       }
       var a = setInterval(function () {
         if (that.data.huid != -1) {
           that.end()
           clearInterval(a)
-        } else if (that.data.huid == -1 && that.data.finished) {
+        }else if (that.data.huid == -1 && that.data.finished) {
           that.end()
           clearInterval(a)
-        } else {
+        }
+         else {
           if (that.data.whosturn != 0 && that.data.pongid != 0) {
             that.nextplayer()
           } else if (that.data.pongid == 0) {
@@ -332,7 +337,8 @@ Page({
       lastdiscard: res.data["lastdiscard"],
       score: res.data["score"],
       huid: res.data["huid"],
-      finished: res.data["finished"]
+      finished: res.data["finished"],
+      pongid :res.data["pong_id"]
     })
   },
 })

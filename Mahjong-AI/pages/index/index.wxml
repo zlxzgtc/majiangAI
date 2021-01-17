@@ -67,7 +67,7 @@
             </image>
           </view>
         </view>
-        <view wx:if="{{eatchoicelist.length||pong_id == 0}}" class="cpk-button playershape">
+        <view wx:if="{{eatchoicelist.length||pongid == 0}}" class="cpk-button playershape">
           <view wx:if="{{eatchoicelist.length}}" wx:for="{{eatchoicelist}}" wx:for-index="j" class="chooseshape"
             bindtap="eat" data-index="{{eatchoicelist[j]}}">
             <view class="chiimg" wx:for="{{eatchoicetiles[j]}}" wx:if="{{eatchoicelist[j] != 3}}" wx:for-index="i"

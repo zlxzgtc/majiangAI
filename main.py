@@ -30,6 +30,7 @@ def creatres():
         "huid":game.hu_id,
         #是否流局
         "finished":game.finished,
+        "pong_id":-1
     }
     return res 
 
@@ -46,15 +47,16 @@ def game_start():
     for k in range(0, 16):
         for j in range(4):
             game.players[j].add_tiles(game.game_table.give_pile())
-
+    game.players[0].tiles.sort()
     game.mo(player_id = game.now_turn)
     res = creatres()
     res["recommand"]=[game.players[0].computer_choose()]
     return res
 
 @app.route('/mo')
-def mo(): #如果能吃，就返回eatchoice 
-    game.players[0].sort_tiles()
+def mo(): #如果能吃，就返回eatchoice
+    game.players[0].tiles.sort()
+    print(game.players[0].tiles)
     if len(game.game_table.Tiles)==71:
         # game.mo(player_id = game.now_turn)
         game.player_think_hu()
@@ -122,35 +124,37 @@ def discard():
     game.others_think_hu(game.last_tile)
     res = creatres()
     if game.hu_id == -1:
+        game.next_player()
         pong_id = game.others_think_pong(game.last_tile)
         if pong_id != -1:
             game.next_player(pong_id % 4)
             game.last_tile = game.player_think_out()
-            game.next_player()
-        else:
-            game.next_player()
+            # game.next_player()
+        # else:
+            # game.next_player()
         res = creatres()
         res["pong_id"] = pong_id
-    
     return res
 
 @app.route('/pong', methods=["POST"])
 def pong():
     print(game.players[0].tiles)
     pong_id=int(request.form['ifpong'])
-    if pong_id == -1:
-        game.tiles.remove(game.last_tile)
-        game.tiles.remove(game.last_tile)
-        game.pong_tiles+=[game.last_tile] * 3
+    if pong_id != -1:
+        game.players[0].tiles.remove(game.last_tile)
+        game.players[0].tiles.remove(game.last_tile)
+        game.players[0].pong_tiles+=[game.last_tile] * 3
     else:
-        game.next_player()
+        game.mo(player_id = game.now_turn)
+        game.player_think_hu()
+        # game.next_player()
     res = creatres()
     return res
 
 
 @app.route('/nextplayer', methods=["GET"])
 def nextplayer():
-    now_turn = game.now_turn
+    # now_turn = game.now_turn
     c = game.player_think_eat(game.last_tile)
     print("c",c)
     pong_id=-1
@@ -181,6 +185,7 @@ def nextplayer():
                     res["pong_id"] = game.now_turn
     print("pong_id",pong_id)
     res = creatres()
+    res["pong_id"] = pong_id
     # res["pong_id"] = game.now_turn
     return res
 
