@@ -39,12 +39,13 @@ class Game():
             # for k in range(4):
             #     print(k, ' 的牌：', utils.get_Tiles_names(self.players[k].tiles))
             self.play()
+            print("ai手牌："+utils.get_Tiles_names(self.players[0].tiles) )
             print("--------------------游戏结束--------------------\n")
             print(self.print_score())
             #             print(s)
-            f = "train.txt"
-            with open(f, "a") as file:
-                file.write(s)
+            # f = "train.txt"
+            # with open(f, "a") as file:
+            #     file.write(s)
 
     def play(self, banker=0):
         k = 0
@@ -188,5 +189,5 @@ class Game():
 gpu = tf.config.experimental.list_physical_devices(device_type='GPU')[0]
 tf.config.experimental.set_memory_growth(gpu, True)
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-game = Game(round=1000)
+game = Game(round=10000)
 game.start()
